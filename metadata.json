@@ -1,0 +1,6 @@
+{
+  "name": "PashuHealth AI - Livestock Management & Diagnostics",
+  "description": "Multi-modal AI livestock health platform with camera guided capture, Gemini vision analysis, RAG diagnostics, conformational posture scoring, and veterinary officer workbench.",
+  "requestFramePermissions": ["camera", "microphone", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
