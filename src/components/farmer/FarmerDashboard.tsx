@@ -96,13 +96,22 @@ export const FarmerDashboard: React.FC<FarmerDashboardProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => onOpenScan()}
-              className="flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-5 py-3 rounded-2xl shadow-md text-xs sm:text-sm transition-all transform active:scale-95 cursor-pointer"
-            >
-              <Camera className="w-4 h-4 stroke-[2.5]" />
-              <span>Start Guided Camera Scan</span>
-            </button>
+            <div className="relative group p-[2px] rounded-2xl ai-glow-border shadow-lg hover:shadow-emerald-400/30 transition-all">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-300 rounded-2xl blur-xs opacity-70 group-hover:opacity-100 transition duration-500 pointer-events-none"></div>
+              <button
+                onClick={() => onOpenScan()}
+                className="relative flex items-center space-x-2.5 bg-slate-900 hover:bg-slate-850 active:bg-black text-emerald-300 font-bold px-5 sm:px-6 py-3 rounded-[14px] text-xs sm:text-sm transition-all transform active:scale-95 cursor-pointer min-h-[44px]"
+              >
+                <div className="relative flex items-center justify-center">
+                  <Camera className="w-4 h-4 stroke-[2.5] text-emerald-400" />
+                  <Sparkles className="w-3 h-3 text-cyan-300 absolute -top-1 -right-1 animate-pulse" />
+                </div>
+                <span className="text-white font-bold">Start Guided Camera Scan</span>
+                <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                  AI
+                </span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -256,22 +265,25 @@ export const FarmerDashboard: React.FC<FarmerDashboardProps> = ({
                   </div>
 
                   {/* Cattle Pregnancy & Lactation Badges */}
-                  {(animal.pregnancyStatus || animal.lactationStatus) && (
-                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                      {animal.pregnancyStatus && (
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 flex items-center gap-1">
-                          <Heart className="w-2.5 h-2.5 text-purple-600" />
-                          <span className="truncate max-w-[120px]">{animal.pregnancyStatus}</span>
-                        </span>
-                      )}
-                      {animal.lactationStatus && (
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-cyan-50 text-cyan-700 border border-cyan-200 flex items-center gap-1">
-                          <Milk className="w-2.5 h-2.5 text-cyan-600" />
-                          <span className="truncate max-w-[110px]">{animal.dailyMilkYieldLiters ? `${animal.dailyMilkYieldLiters}L/d` : animal.lactationStatus}</span>
-                        </span>
-                      )}
-                    </div>
-                  )}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    {animal.reports && animal.reports.length > 0 && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1">
+                        📄 {animal.reports.length} {animal.reports.length === 1 ? 'Report' : 'Reports'}
+                      </span>
+                    )}
+                    {animal.pregnancyStatus && (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 flex items-center gap-1">
+                        <Heart className="w-2.5 h-2.5 text-purple-600" />
+                        <span className="truncate max-w-[120px]">{animal.pregnancyStatus}</span>
+                      </span>
+                    )}
+                    {animal.lactationStatus && (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-cyan-50 text-cyan-700 border border-cyan-200 flex items-center gap-1">
+                        <Milk className="w-2.5 h-2.5 text-cyan-600" />
+                        <span className="truncate max-w-[110px]">{animal.dailyMilkYieldLiters ? `${animal.dailyMilkYieldLiters}L/d` : animal.lactationStatus}</span>
+                      </span>
+                    )}
+                  </div>
                 </div>
 
               </div>
