@@ -3,7 +3,8 @@ import { AnimalProfile, DiagnosticAssessment, OutbreakAlert, RagIndexItem } from
 export const SAMPLE_CATTLE_PRESETS = [
   {
     id: 'preset-gir-lumpy',
-    title: 'Gir Cow - Suspected Nodular Lesions (Lumpy Skin)',
+    title: 'Gir Cow - Nodular Eruptions (Lumpy Skin Disease)',
+    category: 'Viral Infections',
     breed: 'Gir (Bos indicus)',
     species: 'Cattle',
     earTag: 'IN-GJ-2024-9104',
@@ -22,7 +23,8 @@ export const SAMPLE_CATTLE_PRESETS = [
   },
   {
     id: 'preset-murrah-fmd',
-    title: 'Murrah Buffalo - Suspected Oral & Foot Lesions (FMD)',
+    title: 'Murrah Buffalo - Vesicular Stomatitis & Hoof Lesions (FMD)',
+    category: 'Viral Infections',
     breed: 'Murrah (Bubalus bubalis)',
     species: 'Buffalo',
     earTag: 'IN-HR-2024-4318',
@@ -40,27 +42,9 @@ export const SAMPLE_CATTLE_PRESETS = [
     }
   },
   {
-    id: 'preset-sahiwal-healthy',
-    title: 'Sahiwal Dairy Cow - Optimal BCS & Posture',
-    breed: 'Sahiwal (Zebu Cattle)',
-    species: 'Cattle',
-    earTag: 'IN-PB-2024-1189',
-    imageUrl: 'https://images.unsplash.com/photo-1527153857715-3908f2ae5e81?auto=format&fit=crop&w=1000&q=80',
-    description: 'Reddish-dun smooth coat, prominent hump, well-developed symmetrical udder. Normal straight spine and alert posture.',
-    symptoms: 'Routine herd health check, high milk yield, normal rumination',
-    pregnancyStatus: 'Early Gestation (1-3 Months)',
-    lactationStatus: 'Early Lactation (Peak Yield)',
-    dailyMilkYieldLiters: 18.5,
-    location: { lat: 30.9010, lng: 75.8573, district: 'Ludhiana', state: 'Punjab' },
-    defaultDiagnosis: {
-      disease: 'Healthy Herd Specimen - No Pathological Lesions',
-      severity: 'Healthy',
-      bcs: 3.7
-    }
-  },
-  {
     id: 'preset-crossbred-mastitis',
-    title: 'HF Crossbred Cow - Udder Swelling (Acute Mastitis)',
+    title: 'HF Crossbred Cow - Udder Induration & Quarter Edema (Mastitis)',
+    category: 'Bacterial & Mammary',
     breed: 'Holstein-Friesian Cross',
     species: 'Cattle',
     earTag: 'IN-MH-2024-6721',
@@ -75,6 +59,185 @@ export const SAMPLE_CATTLE_PRESETS = [
       disease: 'Acute Clinical Mastitis (Streptococcus / Staphylococcal)',
       severity: 'Severe',
       bcs: 3.2
+    }
+  },
+  {
+    id: 'preset-kankrej-theileriosis',
+    title: 'Kankrej Cow - Prescapular Lymphadenopathy (Theileriosis)',
+    category: 'Parasitic & Tick-borne',
+    breed: 'Kankrej (Bos indicus)',
+    species: 'Cattle',
+    earTag: 'IN-GJ-2024-5820',
+    imageUrl: 'https://images.unsplash.com/photo-1527153857715-3908f2ae5e81?auto=format&fit=crop&w=1000&q=80',
+    description: 'Silver-grey coat, lyre-shaped horns. Swollen prescapular lymph nodes (size of fist), pale conjunctiva, high persistent fever 105°F, heavy tick burden.',
+    symptoms: 'Enlarged shoulder lymph nodes, pale mucous membranes, tick infestation, high fever, shivering',
+    pregnancyStatus: 'Mid Gestation (4-6 Months)',
+    lactationStatus: 'Mid Lactation',
+    dailyMilkYieldLiters: 10.0,
+    location: { lat: 23.0225, lng: 72.5714, district: 'Ahmedabad', state: 'Gujarat' },
+    defaultDiagnosis: {
+      disease: 'Bovine Theileriosis (Theileria annulata)',
+      severity: 'Severe',
+      bcs: 2.6
+    }
+  },
+  {
+    id: 'preset-jersey-pinkeye',
+    title: 'Jersey Crossbred - Corneal Opacity & Blepharospasm (Pinkeye)',
+    category: 'Ophthalmic & Bacterial',
+    breed: 'Jersey Cross',
+    species: 'Cattle',
+    earTag: 'IN-KA-2024-3312',
+    imageUrl: 'https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&w=1000&q=80',
+    description: 'Fawn-colored coat. Central white-gray corneal opacity, intense tearing (epiphora), photophobia, and conjunctival redness with fly swarming.',
+    symptoms: 'Cloudy eye, squinting in sunlight, copious tearing, fly irritation',
+    pregnancyStatus: 'Mid Gestation (4-6 Months)',
+    lactationStatus: 'Mid Lactation',
+    dailyMilkYieldLiters: 14.0,
+    location: { lat: 12.9716, lng: 77.5946, district: 'Bengaluru Rural', state: 'Karnataka' },
+    defaultDiagnosis: {
+      disease: 'Infectious Bovine Keratoconjunctivitis (Pinkeye / Moraxella bovis)',
+      severity: 'Moderate',
+      bcs: 3.3
+    }
+  },
+  {
+    id: 'preset-sindhi-ringworm',
+    title: 'Red Sindhi Cow - Circular Alopecic Crusts (Ringworm)',
+    category: 'Fungal & Dermal',
+    breed: 'Red Sindhi (Bos indicus)',
+    species: 'Cattle',
+    earTag: 'IN-TN-2024-7704',
+    imageUrl: 'https://images.unsplash.com/photo-1589923188900-85dae523342b?auto=format&fit=crop&w=1000&q=80',
+    description: 'Deep red coat. Circular, circumscribed grayish asbestos-like crusty plaques and hair loss around periorbital face and neck.',
+    symptoms: 'Circular grayish crusty patches on face and neck, hair falling out in rings',
+    pregnancyStatus: 'Mid Gestation (4-6 Months)',
+    lactationStatus: 'Mid Lactation',
+    dailyMilkYieldLiters: 13.0,
+    location: { lat: 11.0168, lng: 76.9558, district: 'Coimbatore', state: 'Tamil Nadu' },
+    defaultDiagnosis: {
+      disease: 'Bovine Dermatophytosis (Ringworm / Trichophyton verrucosum)',
+      severity: 'Mild',
+      bcs: 3.2
+    }
+  },
+  {
+    id: 'preset-jaffarabadi-hs',
+    title: 'Jaffarabadi Buffalo - Submandibular Edema (Galghotu / HS)',
+    category: 'Bacterial & Respiratory',
+    breed: 'Jaffarabadi Buffalo',
+    species: 'Buffalo',
+    earTag: 'IN-GJ-2024-2190',
+    imageUrl: 'https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?auto=format&fit=crop&w=1000&q=80',
+    description: 'Massive heavy head and horns. Severe hot submandibular and throat swelling, stertorous gasping breathing, protruding tongue, fever 106°F.',
+    symptoms: 'Huge throat swelling (Galghotu), gasping for air, stertorous breathing, high fever',
+    pregnancyStatus: 'Mid Gestation (4-6 Months)',
+    lactationStatus: 'Early Lactation',
+    dailyMilkYieldLiters: 15.0,
+    location: { lat: 21.6032, lng: 70.0321, district: 'Porbandar', state: 'Gujarat' },
+    defaultDiagnosis: {
+      disease: 'Haemorrhagic Septicaemia (HS / Pasteurella multocida)',
+      severity: 'Emergency Quarantine',
+      bcs: 3.0
+    }
+  },
+  {
+    id: 'preset-tharparkar-mange',
+    title: 'Tharparkar Cow - Lichenified Skin Folds & Pruritus (Mange)',
+    category: 'Parasitic & Ectoparasites',
+    breed: 'Tharparkar (Bos indicus)',
+    species: 'Cattle',
+    earTag: 'IN-RJ-2024-5502',
+    imageUrl: 'https://images.unsplash.com/photo-1546445317-29f4545e9d53?auto=format&fit=crop&w=1000&q=80',
+    description: 'White/light grey desert coat. Thickened corrugated skin folds, intense itching, raw scratch marks and heavy crusting along neck and tailhead.',
+    symptoms: 'Continuous itching and rubbing against walls, thickened wrinkled skin, hair loss',
+    pregnancyStatus: 'Late Gestation (7-9 Months)',
+    lactationStatus: 'Late Lactation',
+    dailyMilkYieldLiters: 9.5,
+    location: { lat: 25.7521, lng: 71.3967, district: 'Barmer', state: 'Rajasthan' },
+    defaultDiagnosis: {
+      disease: 'Bovine Acariasis (Sarcoptic / Psoroptic Mange)',
+      severity: 'Moderate',
+      bcs: 2.7
+    }
+  },
+  {
+    id: 'preset-crossbred-bloat',
+    title: 'Dairy Crossbred - Left Flank Tympany & Distension (Bloat)',
+    category: 'Digestive & Acute',
+    breed: 'HF Crossbred',
+    species: 'Cattle',
+    earTag: 'IN-UP-2024-8841',
+    imageUrl: 'https://images.unsplash.com/photo-1596733430284-f7437764b1a9?auto=format&fit=crop&w=1000&q=80',
+    description: 'Severe ballooning distension of left paralumbar fossa rising higher than spinal line after lush legume grazing. Animal kicking at belly.',
+    symptoms: 'Huge swelling on left side of belly (Aafra), restlessness, kicking at stomach, respiratory distress',
+    pregnancyStatus: 'Mid Gestation (4-6 Months)',
+    lactationStatus: 'Mid Lactation',
+    dailyMilkYieldLiters: 17.0,
+    location: { lat: 26.8467, lng: 80.9462, district: 'Lucknow', state: 'Uttar Pradesh' },
+    defaultDiagnosis: {
+      disease: 'Acute Ruminal Bloat (Frothy Tympany)',
+      severity: 'Severe',
+      bcs: 3.4
+    }
+  },
+  {
+    id: 'preset-hf-milkfever',
+    title: 'HF Cow - Postparturient Sternal Recumbency (Milk Fever)',
+    category: 'Metabolic & Postpartum',
+    breed: 'Holstein-Friesian Cross',
+    species: 'Cattle',
+    earTag: 'IN-AP-2024-4419',
+    imageUrl: 'https://images.unsplash.com/photo-1596733430284-f7437764b1a9?auto=format&fit=crop&w=1000&q=80',
+    description: 'Downer cow sitting in sternal recumbency with classic S-shaped neck kink turned towards flank 24 hours post-calving. Cold ears and dry muzzle.',
+    symptoms: 'Unable to stand after calving (Downer cow), head tucked to side, cold ears, dull demeanor',
+    pregnancyStatus: 'Recently Calved (Postpartum)',
+    lactationStatus: 'Early Lactation (Peak Yield)',
+    dailyMilkYieldLiters: 24.0,
+    location: { lat: 16.5062, lng: 80.6480, district: 'Krishna', state: 'Andhra Pradesh' },
+    defaultDiagnosis: {
+      disease: 'Postparturient Hypocalcemia (Milk Fever)',
+      severity: 'Severe',
+      bcs: 3.5
+    }
+  },
+  {
+    id: 'preset-sahiwal-healthy',
+    title: 'Sahiwal Dairy Cow - Optimal BCS & Posture (Healthy)',
+    category: 'Healthy Baseline',
+    breed: 'Sahiwal (Zebu Cattle)',
+    species: 'Cattle',
+    earTag: 'IN-PB-2024-1189',
+    imageUrl: 'https://images.unsplash.com/photo-1527153857715-3908f2ae5e81?auto=format&fit=crop&w=1000&q=80',
+    description: 'Reddish-dun smooth glossy coat, prominent hump, well-developed symmetrical udder, moist sweat beads on muzzle, alert straight spine.',
+    symptoms: 'Routine herd health check, high milk yield, normal rumination and alert conformation',
+    pregnancyStatus: 'Early Gestation (1-3 Months)',
+    lactationStatus: 'Early Lactation (Peak Yield)',
+    dailyMilkYieldLiters: 18.5,
+    location: { lat: 30.9010, lng: 75.8573, district: 'Ludhiana', state: 'Punjab' },
+    defaultDiagnosis: {
+      disease: 'Healthy Herd Specimen - No Pathological Lesions',
+      severity: 'Healthy',
+      bcs: 3.7
+    }
+  },
+  {
+    id: 'preset-ongole-healthy',
+    title: 'Ongole Bull - Certified Pathogen-Free Breeding Sire (Healthy)',
+    category: 'Healthy Baseline',
+    breed: 'Ongole (Bos indicus)',
+    species: 'Cattle',
+    earTag: 'IN-AP-2024-1002',
+    imageUrl: 'https://images.unsplash.com/photo-1546445317-29f4545e9d53?auto=format&fit=crop&w=1000&q=80',
+    description: 'Pristine white coat, majestic muscular hump, powerful clean limbs and straight spine with certified negative serology for Brucella and IBR.',
+    symptoms: 'Breeding soundness examination, optimal BCS 4.0, zero lesions or lameness',
+    pregnancyStatus: 'Not Applicable / Male',
+    lactationStatus: 'Not Applicable / Male',
+    location: { lat: 15.5057, lng: 80.0499, district: 'Prakasam', state: 'Andhra Pradesh' },
+    defaultDiagnosis: {
+      disease: 'Certified Pathogen-Free Breeding Sire',
+      severity: 'Healthy',
+      bcs: 4.0
     }
   }
 ];
@@ -115,7 +278,45 @@ export const INITIAL_ANIMAL_PROFILES: AnimalProfile[] = [
       { name: 'Goat Pox Vaccine (Heterologous for LSD)', date: '2025-11-10', nextDueDate: '2026-11-10', batchNo: 'GPV-291' }
     ],
     assessmentsCount: 3,
-    quarantineStatus: 'Recommended'
+    quarantineStatus: 'Recommended',
+    reports: [
+      {
+        id: 'rep-ndlm-9104-01',
+        reportNumber: 'REP-NDLM-9104-1',
+        animalId: 'anim-c9b1-8924',
+        animalEarTag: 'IN-GJ-2024-9104',
+        animalName: 'Gauri (गौरी)',
+        breed: 'Gir',
+        species: 'Cattle',
+        createdAt: '2026-08-20T10:35:00Z',
+        authorName: 'Dr. Arvind Shastri, MVSc',
+        authorRole: 'Veterinary Officer',
+        title: 'Clinical Diagnostic Report - Suspected Lumpy Skin Disease',
+        primaryDiagnosis: 'Lumpy Skin Disease (Capripoxvirus) - Nodular Stage',
+        severityGrade: 'Moderate',
+        bcsScore: 3.1,
+        summaryObservations: 'Circumscribed cutaneous nodules (2-4 cm) along neck, lateral thorax, and perineum with mild pyrexia.',
+        customNotes: 'Advised strict vector isolation with mosquito netting. Secondary bacterial prophylaxis initiated.',
+        immediateRemedies: [
+          'Fly & tick repellent spray (Cypermethrin 1% / Neem-oil formulation)',
+          'Topical antiseptic ointment (Povidone Iodine 5%) on ruptured nodules',
+          'Isolate from other milking cows to prevent mechanical transmission'
+        ],
+        recommendedVeterinaryActions: [
+          'Ring vaccination with Goat Pox Vaccine in 5km radius zone',
+          'Supportive antipyretic administration (Meloxicam + Paracetamol)',
+          'Daily mucosal inspection for secondary ulcerative complications'
+        ],
+        ndlmSyncStatus: 'Synchronized & Verified',
+        imageUrl: 'https://images.unsplash.com/photo-1546445317-29f4545e9d53?auto=format&fit=crop&w=600&q=80',
+        gpsLocation: {
+          lat: 21.5222,
+          lng: 70.4579,
+          district: 'Junagadh',
+          state: 'Gujarat'
+        }
+      }
+    ]
   },
   {
     id: 'anim-f4a2-4318',
@@ -224,6 +425,77 @@ export const INITIAL_ANIMAL_PROFILES: AnimalProfile[] = [
     ],
     assessmentsCount: 4,
     quarantineStatus: 'Recommended'
+  },
+  {
+    id: 'anim-th-5502',
+    earTagNumber: 'IN-RJ-2024-5502',
+    name: 'Nandini (नंदिनी)',
+    species: 'Cattle',
+    breed: 'Tharparkar',
+    estimatedAgeMonths: 50,
+    gender: 'Female',
+    weightKg: 405,
+    ownerName: 'Manohar Lal Bhati',
+    ownerContact: '+91 94141 66209',
+    ownerVillage: 'Sheo Tehsil',
+    district: 'Barmer',
+    state: 'Rajasthan',
+    gpsLocation: {
+      lat: 25.7521,
+      lng: 71.3967,
+      accuracyMeters: 4.8,
+      timestamp: '2026-08-22T09:15:00Z'
+    },
+    currentStatus: 'Observation',
+    lastAssessmentDate: '2026-08-22T09:30:00Z',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1546445317-29f4545e9d53?auto=format&fit=crop&w=600&q=80',
+    bodyConditionScore: 3.4,
+    pregnancyStatus: 'Late Gestation (7-9 Months)',
+    lactationStatus: 'Late Lactation',
+    dailyMilkYieldLiters: 9.5,
+    lactationStageDays: 210,
+    inseminationDate: '2025-12-10',
+    expectedCalvingDate: '2026-09-18',
+    vaccinations: [
+      { name: 'FMD Polyvalent Inactivated', date: '2026-02-15', nextDueDate: '2026-08-15', batchNo: 'FMD-RJ-312' },
+      { name: 'Black Quarter (BQ) Vaccine', date: '2025-05-10', nextDueDate: '2026-05-10', batchNo: 'BQ-552' }
+    ],
+    assessmentsCount: 2,
+    quarantineStatus: 'None'
+  },
+  {
+    id: 'anim-on-7714',
+    earTagNumber: 'IN-AP-2024-7714',
+    name: 'Veer (वीर)',
+    species: 'Cattle',
+    breed: 'Ongole',
+    estimatedAgeMonths: 60,
+    gender: 'Male',
+    weightKg: 680,
+    ownerName: 'Subba Rao',
+    ownerContact: '+91 98480 55198',
+    ownerVillage: 'Kandukur Mandal',
+    district: 'Prakasam',
+    state: 'Andhra Pradesh',
+    gpsLocation: {
+      lat: 15.2185,
+      lng: 79.9042,
+      accuracyMeters: 3.5,
+      timestamp: '2026-08-21T11:00:00Z'
+    },
+    currentStatus: 'Healthy',
+    lastAssessmentDate: '2026-08-21T11:30:00Z',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1527153857715-3908f2ae5e81?auto=format&fit=crop&w=600&q=80',
+    bodyConditionScore: 4.1,
+    pregnancyStatus: 'Not Applicable / Male',
+    lactationStatus: 'Not Applicable / Male',
+    dailyMilkYieldLiters: 0,
+    vaccinations: [
+      { name: 'FMD Oil Adjuvant Vaccine', date: '2026-03-10', nextDueDate: '2026-09-10', batchNo: 'FMD-AP-891' },
+      { name: 'Anthrax Spore Vaccine', date: '2025-09-15', nextDueDate: '2026-09-15', batchNo: 'ANTH-104' }
+    ],
+    assessmentsCount: 2,
+    quarantineStatus: 'None'
   }
 ];
 
@@ -344,7 +616,419 @@ export const INITIAL_ASSESSMENTS: DiagnosticAssessment[] = [
       district: 'Junagadh',
       state: 'Gujarat'
     },
+    audioLanguage: 'hi',
+    reviewedByOfficer: {
+      officerName: 'Dr. Arvind Shastri (BVSc & AH)',
+      officerBadge: 'VET-GJ-9042',
+      reviewedAt: '2026-08-20T14:15:00Z',
+      officialRemarks: 'Confirmed moderate LSD lesions. Prescribed NSAIDs and topical neem spray. Advised 21 days isolation.',
+      quarantineIssued: true
+    }
+  },
+  {
+    id: 'diag-4318-01',
+    animalId: 'anim-f4a2-4318',
+    timestamp: '2026-08-21T09:00:00Z',
+    imageUrl: 'https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?auto=format&fit=crop&w=1000&q=80',
+    predictedBreed: 'Murrah Buffalo (Bubalus bubalis)',
+    breedConfidence: 97.1,
+    detectedSpecies: 'Buffalo',
+    coatCondition: 'Dull / Matted',
+    postureAssessment: {
+      spineCurvature: 'Kyphosis (Hunched)',
+      headCarriage: 'Depressed / Drooping',
+      weightBearing: 'Antalgic (Shifting/Limping)',
+      gaitConfidence: 94.5
+    },
+    bodyConditionScore: 2.8,
+    conformationalMetrics: [
+      { metric: 'Gait Symmetry Index', score: 48, benchmark: '80-100 Healthy', status: 'Abnormal', details: 'Severe antalgic limb shifting with reluctance to stand due to interdigital pododermatitis.' },
+      { metric: 'Body Symmetry', score: 82, benchmark: '85-100', status: 'Sub-optimal', details: 'Depressed demeanor with significant weight reduction over last 10 days.' }
+    ],
+    lesions: [
+      {
+        id: 'les-fmd-01',
+        label: 'Oral Mucosal Vesicles & Sloughing',
+        confidence: 97.8,
+        severity: 'Severe',
+        boundingBox: { ymin: 40, xmin: 30, ymax: 65, xmax: 55 },
+        anatomicalLocation: 'Muzzle, Dental Pad & Tongue',
+        clinicalDescription: 'Ruptured vesicular blisters with raw, painful erosions causing profuse stringy salivation.'
+      },
+      {
+        id: 'les-fmd-02',
+        label: 'Interdigital Coronary Band Vesicles',
+        confidence: 95.4,
+        severity: 'Severe',
+        boundingBox: { ymin: 75, xmin: 40, ymax: 95, xmax: 65 },
+        anatomicalLocation: 'Interdigital Cleft of Forelimbs',
+        clinicalDescription: 'Erosive cleft lesions with secondary fly strike risk and acute lameness.'
+      }
+    ],
+    primaryDiagnosis: 'Foot and Mouth Disease (FMD) - Acute Vesicular Stage',
+    pregnancyStatus: 'Late Gestation (7-9 Months)',
+    lactationStatus: 'Early Lactation (Peak Yield)',
+    milkYieldImpact: 'Severe drop: 16.0L/day crashed to <4.0L/day due to acute oral pain, anorexia and hyperthermia.',
+    reproductiveAndLactationAlerts: {
+      pregnancyRiskNotes: 'Late gestation alert: Risk of abortion or stillbirth triggered by acute high pyrexia (>105°F). Monitor vital signs hourly.',
+      lactationImpact: 'Severe agalactia. Milk must be boiled and destroyed to prevent viral transmission.',
+      drugContraindications: ['Corticosteroids are contraindicated during acute viral viremia and late gestation.'],
+      nutritionalRecommendation: 'Feed soft gruel, cooled rice water, porridge (Dalia) and crushed soaked oil cakes.'
+    },
+    differentialDiagnoses: [
+      {
+        disease: 'Foot and Mouth Disease (Aphthovirus Type-O)',
+        probability: 96.4,
+        keyIndications: ['Profuse ropy salivation', 'Interdigital vesicles', 'High fever >105°F', 'Acute lameness'],
+        sourceDataset: 'Bharat Pashudhan & ICAR-PDFMD Registry'
+      },
+      {
+        disease: 'Vesicular Stomatitis (Rhabdoviridae)',
+        probability: 3.1,
+        keyIndications: ['Oral lesions without widespread hoof detachment'],
+        sourceDataset: 'ICAR Diagnostic Guidelines'
+      }
+    ],
+    severityGrade: 'Emergency Quarantine',
+    ragCitations: [
+      {
+        source: 'Bharat Pashudhan (NDLM)',
+        title: 'Epidemic Response Protocol for FMD Outbreaks in High-Yield Dairy Animals',
+        section: 'Section 1.1: Mandatory Ring Quarantine & Biosecurity Cordon',
+        relevanceScore: 0.985,
+        guidelineSnippet: 'Enforce strict 10km movement barrier. Wash oral lesions with 1% Potassium Permanganate (KMnO4) or 2% Sodium Bicarbonate solution. Treat foot lesions with Copper Sulphate 1:1000 wash and apply insect repellent.',
+        url: 'https://bharatpashudhan.ndlm.co.in/guidelines/fmd-emergency'
+      }
+    ],
+    immediateRemedies: [
+      'Immediate isolation in clean shed with soft dry bedding (paddy straw).',
+      'Mouth wash 3 times daily with mild 1% Potassium Permanganate (KMnO4) solution.',
+      'Foot bath with 2% Sodium Carbonate or Copper Sulphate solution twice daily.',
+      'Offer soft liquid gruel (wheat bran + jaggery + mineral mixture) to maintain caloric intake.'
+    ],
+    recommendedVeterinaryActions: [
+      'Emergency Veterinary Officer dispatch for biosecurity cordon.',
+      'Injectable Flunixin Meglumine (2.2 mg/kg IV/IM) for rapid antipyretic & analgesia.',
+      'Broad-spectrum Ceftiofur Sodium to prevent septic pododermatitis.',
+      'Notification to National Outbreak Monitoring Cell (NDLM) within 4 hours.'
+    ],
+    biosecurityProtocol: [
+      'Quarantine perimeter of 5 km radius with ban on animal transport.',
+      'Disinfect farm entrance with 4% Sodium Carbonate solution.',
+      'Burn or safely bury contaminated bedding and feed leftovers.'
+    ],
+    gpsMetadata: {
+      lat: 29.0588,
+      lng: 76.0856,
+      district: 'Hisar',
+      state: 'Haryana'
+    },
+    audioLanguage: 'hi',
+    reviewedByOfficer: {
+      officerName: 'Dr. Arvind Shastri (BVSc & AH)',
+      officerBadge: 'VET-GJ-9042',
+      reviewedAt: '2026-08-21T10:15:00Z',
+      officialRemarks: 'EMERGENCY QUARANTINE ENFORCED. Notified State Directorate of Animal Husbandry.',
+      quarantineIssued: true
+    }
+  },
+  {
+    id: 'diag-6721-01',
+    animalId: 'anim-a2e7-6721',
+    timestamp: '2026-08-22T06:30:00Z',
+    imageUrl: 'https://images.unsplash.com/photo-1596733430284-f7437764b1a9?auto=format&fit=crop&w=1000&q=80',
+    predictedBreed: 'Holstein-Friesian Crossbred',
+    breedConfidence: 96.0,
+    detectedSpecies: 'Cattle',
+    coatCondition: 'Dull / Matted',
+    postureAssessment: {
+      spineCurvature: 'Normal Straight',
+      headCarriage: 'Alert & Elevated',
+      weightBearing: 'Equal on all 4 limbs',
+      gaitConfidence: 91.0
+    },
+    bodyConditionScore: 3.2,
+    conformationalMetrics: [
+      { metric: 'Udder Depth & Conformation', score: 42, benchmark: '75-95 Optimal', status: 'Abnormal', details: 'Marked asymmetric enlargement of right hind quarter with pronounced vascular engorgement.' },
+      { metric: 'Body Frame Score', score: 85, benchmark: '80-100 Ideal', status: 'Optimal', details: 'Good crossbred dairy frame with typical wedge conformation.' }
+    ],
+    lesions: [
+      {
+        id: 'les-mast-01',
+        label: 'Right Hind Quarter Erythema & Severe Induration',
+        confidence: 94.8,
+        severity: 'Severe',
+        boundingBox: { ymin: 55, xmin: 45, ymax: 85, xmax: 75 },
+        anatomicalLocation: 'Right Rear Mammary Quarter',
+        clinicalDescription: 'Tense, hot, painful quarter with purulent clotted secretions and microvascular stasis.'
+      }
+    ],
+    primaryDiagnosis: 'Acute Clinical Mastitis (Bovine Staphylococcal/Streptococcal)',
+    pregnancyStatus: 'Non-Pregnant (Open)',
+    lactationStatus: 'Early Lactation (Peak Yield)',
+    milkYieldImpact: 'Drop from 22.0L/day to 11.5L/day. Affected quarter produces yellowish whey-like clotted milk.',
+    reproductiveAndLactationAlerts: {
+      pregnancyRiskNotes: 'Open cow - prepare for recovery before AI breeding cycle.',
+      lactationImpact: 'Discard milk from affected quarter immediately. Do not pool with bulk milk vat.',
+      drugContraindications: ['Observe mandatory 72-96 hour milk withdrawal period post intramammary infusion.'],
+      nutritionalRecommendation: 'Supplement with Vitamin E (1000 IU) and Selenium + Zinc Chelate to boost mammary immunity.'
+    },
+    differentialDiagnoses: [
+      {
+        disease: 'Acute Staphylococcal Mastitis',
+        probability: 91.2,
+        keyIndications: ['Hyperemic swollen quarter', 'Clotted flakes in milk', 'Pyrexia'],
+        sourceDataset: 'Bharat Pashudhan & ICAR-NDRI Clinical Database'
+      },
+      {
+        disease: 'Coliform Mastitis (E. coli Endotoxin)',
+        probability: 7.5,
+        keyIndications: ['Systemic toxemia', 'Serous secretions'],
+        sourceDataset: 'ICAR Protocol Hub'
+      }
+    ],
+    severityGrade: 'Severe',
+    ragCitations: [
+      {
+        source: 'Bharat Pashudhan (NDLM)',
+        title: 'Standard Operating Protocol: Clinical & Subclinical Mastitis Control in Dairy Herds',
+        section: 'Section 3.4: Ethno-Veterinary Formulations & Intramammary Therapy',
+        relevanceScore: 0.95,
+        guidelineSnippet: 'Completely milk out the affected quarter every 2 hours. Infuse intramammary antibiotic tube after antiseptic teat dip. Apply topical herbal formulation of Aloe vera + Curcuma longa + Calcium hydroxide.',
+        url: 'https://bharatpashudhan.ndlm.co.in/guidelines/mastitis-control'
+      }
+    ],
+    immediateRemedies: [
+      'Frequent stripping / hand milking of affected quarter every 2-3 hours to evacuate toxins.',
+      'Cold water fomentation on swollen quarter followed by herbal mastitis paste.',
+      'Post-milking teat dipping in 0.5% Povidone Iodine solution.',
+      'Separate milking cluster/bucket to avoid cross-contaminating other dairy cows.'
+    ],
+    recommendedVeterinaryActions: [
+      'Intramammary Ceftiofur/Cloxacillin infusion after complete milking out.',
+      'Systemic NSAID (Meloxicam 15 ml IM) for anti-inflammatory relief.',
+      'Culture and antibiotic sensitivity test (ABST) of milk sample within 24 hours.'
+    ],
+    biosecurityProtocol: [
+      'Milk the infected animal last in milking order.',
+      'Sanitize milker hands and teat cups with chlorine solution between animals.'
+    ],
+    gpsMetadata: {
+      lat: 19.8762,
+      lng: 75.3433,
+      district: 'Chhatrapati Sambhajinagar',
+      state: 'Maharashtra'
+    },
     audioLanguage: 'hi'
+  },
+  {
+    id: 'diag-1189-01',
+    animalId: 'anim-e8d3-1189',
+    timestamp: '2026-08-21T14:40:00Z',
+    imageUrl: 'https://images.unsplash.com/photo-1527153857715-3908f2ae5e81?auto=format&fit=crop&w=1000&q=80',
+    predictedBreed: 'Sahiwal (Bos indicus)',
+    breedConfidence: 98.2,
+    detectedSpecies: 'Cattle (Zebu)',
+    coatCondition: 'Glossy & Healthy',
+    postureAssessment: {
+      spineCurvature: 'Normal Straight',
+      headCarriage: 'Alert & Elevated',
+      weightBearing: 'Equal on all 4 limbs',
+      gaitConfidence: 98.5
+    },
+    bodyConditionScore: 3.7,
+    conformationalMetrics: [
+      { metric: 'Spine Alignment Index', score: 96, benchmark: '85-100 Normal', status: 'Optimal', details: 'Perfect dorsal spine alignment with breed-true hump structure.' },
+      { metric: 'Udder Symmetry & Attachment', score: 94, benchmark: '85-100 Ideal', status: 'Optimal', details: 'Well-balanced pendulous udder with symmetrical quarters and clear teat spacing.' },
+      { metric: 'Locomotion Score', score: 98, benchmark: '90-100 Healthy', status: 'Optimal', details: 'Confident, rhythmic stride on all limbs.' }
+    ],
+    lesions: [],
+    primaryDiagnosis: 'Healthy Dairy Herd Specimen - Optimal Health & Conformation',
+    pregnancyStatus: 'Early Gestation (1-3 Months)',
+    lactationStatus: 'Early Lactation (Peak Yield)',
+    milkYieldImpact: 'Peak production steady at 18.5 L/day with optimal butterfat (4.6%) and protein content.',
+    reproductiveAndLactationAlerts: {
+      pregnancyRiskNotes: 'Confirmed pregnancy (45 days). Normal embryonic development with no signs of distress.',
+      lactationImpact: 'Optimal yield sustained. High conversion efficiency on green maize silage.',
+      nutritionalRecommendation: 'Maintain balanced TMR (Total Mixed Ration) with 4kg concentrate + 25kg green fodder.'
+    },
+    differentialDiagnoses: [
+      {
+        disease: 'Healthy Bovine Specimen (No Pathologies)',
+        probability: 99.1,
+        keyIndications: ['Glossy coat', 'Bright alert eyes', 'Normal rumination 55 chews/min', 'Clean muzzle sweat droplets'],
+        sourceDataset: 'Bharat Pashudhan NDLM Baselines'
+      }
+    ],
+    severityGrade: 'Mild',
+    ragCitations: [
+      {
+        source: 'Bharat Pashudhan (NDLM)',
+        title: 'Good Dairy Husbandry Practices (GDHP) for Indigenous Zebu Dairy Breeds',
+        section: 'Section 2.1: Transition Cow Nutrition & Peak Lactation Management',
+        relevanceScore: 0.92,
+        guidelineSnippet: 'Indigenous Sahiwal cows exhibit superior A2 beta-casein allele frequencies and exceptional heat tolerance up to 45°C ambient temperature.',
+        url: 'https://bharatpashudhan.ndlm.co.in/guidelines/sahiwal-management'
+      }
+    ],
+    immediateRemedies: [
+      'Continue standard herd feeding routine and clean ad-libitum drinking water.',
+      'Maintain regular morning and evening milking schedule.'
+    ],
+    recommendedVeterinaryActions: [
+      'Routine 90-day gestation ultrasound check scheduled for next veterinary officer visit.',
+      'FMD booster vaccination scheduled for 2026-09-01.'
+    ],
+    biosecurityProtocol: [
+      'Maintain routine clean shed hygiene and seasonal fly repellant.'
+    ],
+    gpsMetadata: {
+      lat: 30.9010,
+      lng: 75.8573,
+      district: 'Ludhiana',
+      state: 'Punjab'
+    },
+    audioLanguage: 'pa'
+  },
+  {
+    id: 'diag-5502-01',
+    animalId: 'anim-th-5502',
+    timestamp: '2026-08-22T09:30:00Z',
+    imageUrl: 'https://images.unsplash.com/photo-1546445317-29f4545e9d53?auto=format&fit=crop&w=1000&q=80',
+    predictedBreed: 'Tharparkar (White Sindhi)',
+    breedConfidence: 93.4,
+    detectedSpecies: 'Cattle',
+    coatCondition: 'Alopecia / Hair Loss',
+    postureAssessment: {
+      spineCurvature: 'Normal Straight',
+      headCarriage: 'Alert & Elevated',
+      weightBearing: 'Equal on all 4 limbs',
+      gaitConfidence: 92.0
+    },
+    bodyConditionScore: 3.4,
+    conformationalMetrics: [
+      { metric: 'Coat Density Index', score: 68, benchmark: '80-100 Normal', status: 'Sub-optimal', details: 'Localized alopecia around neck and tail base due to tick infestation.' }
+    ],
+    lesions: [
+      {
+        id: 'les-th-01',
+        label: 'Localized Ectoparasitic Dermatitis (Hyalomma Ticks)',
+        confidence: 89.5,
+        severity: 'Mild',
+        boundingBox: { ymin: 35, xmin: 20, ymax: 55, xmax: 40 },
+        anatomicalLocation: 'Neck Crease & Perineum',
+        clinicalDescription: 'Moderate tick burden with superficial erythema and pruritus.'
+      }
+    ],
+    primaryDiagnosis: 'Sub-acute Bovine Ectoparasitism & Mild Papular Dermatitis',
+    pregnancyStatus: 'Late Gestation (7-9 Months)',
+    lactationStatus: 'Late Lactation',
+    milkYieldImpact: 'Minor yield drop from 10.5L to 9.5L/day due to mild discomfort and irritation.',
+    reproductiveAndLactationAlerts: {
+      pregnancyRiskNotes: 'Approaching dry period (Month 8). Ensure gentle topical parasite control without systemic organophosphates.',
+      lactationImpact: 'Plan dry cow therapy in 2 weeks.',
+      drugContraindications: ['Avoid systemic organophosphate dips in late gestation pregnant cows. Use topical Flumethrin/Deltamethrin pour-on.'],
+      nutritionalRecommendation: 'Provide balanced dry cow mineral mix with low calcium to prevent milk fever post-calving.'
+    },
+    differentialDiagnoses: [
+      {
+        disease: 'Bovine Ectoparasitism (Hyalomma / Rhipicephalus ticks)',
+        probability: 91.0,
+        keyIndications: ['Visible ticks in neck folds', 'Pruritus / rubbing against posts'],
+        sourceDataset: 'Bharat Pashudhan & ICAR-CAZRI Field Registry'
+      }
+    ],
+    severityGrade: 'Mild',
+    ragCitations: [
+      {
+        source: 'Bharat Pashudhan (NDLM)',
+        title: 'Integrated Vector & Ectoparasite Management in Arid Zone Cattle',
+        section: 'Section 5.2: Safe Acaricide Application in Pregnant Livestock',
+        relevanceScore: 0.89,
+        guidelineSnippet: 'Apply Deltamethrin 1.25% EC pour-on along backline at 1 ml/10 kg body weight. Alternatively apply cold-pressed neem kernel extract 5% emulsion.',
+        url: 'https://bharatpashudhan.ndlm.co.in/guidelines/arid-tick-control'
+      }
+    ],
+    immediateRemedies: [
+      'Gently groom and clean tick attachment sites with neem leaf decoction.',
+      'Apply herbal fly & tick repellent spray (Custard apple seed + neem oil).'
+    ],
+    recommendedVeterinaryActions: [
+      'Pour-on synthetic pyrethroid (Flumethrin 1%) treatment.',
+      'Screen blood smear for Theileria / Babesia haemoprotozoa at next visit.'
+    ],
+    biosecurityProtocol: [
+      'Spray shed walls and cracks with lime and acaricide to break tick breeding cycle.'
+    ],
+    gpsMetadata: {
+      lat: 25.7521,
+      lng: 71.3967,
+      district: 'Barmer',
+      state: 'Rajasthan'
+    },
+    audioLanguage: 'hi'
+  },
+  {
+    id: 'diag-7714-01',
+    animalId: 'anim-on-7714',
+    timestamp: '2026-08-21T11:30:00Z',
+    imageUrl: 'https://images.unsplash.com/photo-1527153857715-3908f2ae5e81?auto=format&fit=crop&w=1000&q=80',
+    predictedBreed: 'Ongole (Bos indicus)',
+    breedConfidence: 98.6,
+    detectedSpecies: 'Cattle (Zebu)',
+    coatCondition: 'Glossy & Healthy',
+    postureAssessment: {
+      spineCurvature: 'Normal Straight',
+      headCarriage: 'Alert & Elevated',
+      weightBearing: 'Equal on all 4 limbs',
+      gaitConfidence: 99.0
+    },
+    bodyConditionScore: 4.1,
+    conformationalMetrics: [
+      { metric: 'Sire Muscularity Score', score: 98, benchmark: '90-100 Ideal', status: 'Optimal', details: 'Robust thoracic muscularity and prominent hump characteristic of prime Ongole breeding bulls.' },
+      { metric: 'Stifle & Hock Integrity', score: 96, benchmark: '85-100 Healthy', status: 'Optimal', details: 'Excellent limb strength and weight bearing.' }
+    ],
+    lesions: [],
+    primaryDiagnosis: 'Certified Breeding Bull - Excellent Conformation & Disease Free',
+    pregnancyStatus: 'Not Applicable / Male',
+    lactationStatus: 'Not Applicable / Male',
+    milkYieldImpact: 'N/A - Breeding Sire',
+    differentialDiagnoses: [
+      {
+        disease: 'Healthy Breeding Bull (Negative for TB, JD, Brucellosis)',
+        probability: 99.8,
+        keyIndications: ['High vigor', 'Clean semen testing record', 'Optimal body score'],
+        sourceDataset: 'NDDB Bull Registry'
+      }
+    ],
+    severityGrade: 'Mild',
+    ragCitations: [
+      {
+        source: 'Bharat Pashudhan (NDLM)',
+        title: 'National Standards for Indigenous Breeding Bulls and Semen Stations',
+        section: 'Section 1.3: Mandatory Semiannual Disease Clearance Protocols',
+        relevanceScore: 0.96,
+        guidelineSnippet: 'Breeding sires must maintain strict quarantine and biannual certification against Tuberculosis, Paratuberculosis (JD), and Brucellosis.',
+        url: 'https://bharatpashudhan.ndlm.co.in/guidelines/bull-biosecurity'
+      }
+    ],
+    immediateRemedies: [
+      'Provide regular exercise, fresh green fodder, and high-protein bull ration.'
+    ],
+    recommendedVeterinaryActions: [
+      'Biannual breeding soundness evaluation (BSE) and semen motility testing.',
+      'FMD booster vaccination scheduled for 2026-09-10.'
+    ],
+    biosecurityProtocol: [
+      'Maintain isolated bull paddock and strict bio-exclusion.'
+    ],
+    gpsMetadata: {
+      lat: 15.2185,
+      lng: 79.9042,
+      district: 'Prakasam',
+      state: 'Andhra Pradesh'
+    },
+    audioLanguage: 'te'
   }
 ];
 

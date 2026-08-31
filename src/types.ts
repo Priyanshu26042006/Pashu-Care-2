@@ -54,6 +54,41 @@ export interface AnimalProfile {
   }[];
   assessmentsCount: number;
   quarantineStatus?: 'None' | 'Recommended' | 'Enforced';
+  reports?: CattleFormalReport[];
+}
+
+export interface CattleFormalReport {
+  id: string;
+  reportNumber: string;
+  animalId: string;
+  animalEarTag: string;
+  animalName?: string;
+  breed: string;
+  species: string;
+  createdAt: string;
+  authorRole: 'Farmer' | 'Veterinary Officer';
+  authorName: string;
+  title: string;
+  primaryDiagnosis: string;
+  severityGrade: 'Mild' | 'Moderate' | 'Severe' | 'Emergency Quarantine' | 'Healthy';
+  summaryObservations: string;
+  customNotes?: string;
+  immediateRemedies: string[];
+  recommendedVeterinaryActions: string[];
+  drugContraindications?: string[];
+  bcsScore: number;
+  pregnancyStatus?: string;
+  lactationStatus?: string;
+  dailyMilkYieldLiters?: number;
+  imageUrl: string;
+  gpsLocation: {
+    district: string;
+    state: string;
+    lat: number;
+    lng: number;
+  };
+  ndlmSyncStatus: 'Synchronized & Verified' | 'Pending Field Verification';
+  officialRemarks?: string;
 }
 
 export interface LesionDetection {
@@ -203,4 +238,22 @@ export interface VoiceSymptomAnalysisResult {
   duration?: string;
   severity?: 'Mild' | 'Moderate' | 'Severe' | 'Critical';
   clinicalSummary: string;
+}
+
+export type UserRole = 'farmer' | 'veterinarian';
+
+export interface AuthUser {
+  id: string;
+  name: string;
+  role: UserRole;
+  phone?: string;
+  email?: string;
+  village?: string;
+  district: string;
+  state: string;
+  badgeNumber?: string;
+  registrationNumber?: string;
+  designation?: string;
+  avatarUrl?: string;
+  assignedCattleIds?: string[];
 }

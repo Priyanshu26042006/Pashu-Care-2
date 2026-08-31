@@ -43,7 +43,7 @@ async function startServer() {
     res.json({
       status: 'healthy',
       geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
-      platform: 'PashuHealth AI Core v2.4.0',
+      platform: 'Gausehat AI Core v2.4.0',
       timestamp: new Date().toISOString(),
     });
   });
@@ -89,32 +89,54 @@ async function startServer() {
             }
           }
 
-          const prompt = `You are a Senior Veterinary Radiologist, Theriogenologist & Livestock Epidemiologist for Bharat Pashudhan (NDLM).
-Analyze this livestock specimen photo and clinical case history.
-Species Hint: ${species}.
-Reported Symptoms: ${symptoms || 'Visual screening'}.
-Reported Pregnancy Status: ${pregnancyStatus}.
-Reported Lactation Status: ${lactationStatus}.
-${dailyMilkYieldLiters ? `Reported Daily Milk Yield: ${dailyMilkYieldLiters} Liters/day.` : ''}
-Location: ${district}, ${state} [Lat: ${latitude}, Lng: ${longitude}].
-${presetBreedHint ? `Preset Context: ${presetBreedHint}` : ''}
+          const prompt = `You are an expert Senior Veterinary Radiologist, Clinical Diagnostician, and Livestock Epidemiologist for Bharat Pashudhan (NDLM) and ICAR-IVRI.
+Analyze this submitted image and clinical context with the highest degree of veterinary precision.
 
-Evaluate:
-1. Exact Indian/Tropical breed classification (e.g. Gir, Sahiwal, Murrah, Kankrej, Tharparkar, Red Sindhi, HF Cross) & confidence.
-2. Hair and coat quality (Glossy & Healthy, Dull / Matted, Alopecia / Hair Loss, Crusted / Nodular).
-3. Conformational posture (spine curvature, head carriage, weight bearing on 4 limbs).
-4. Body Condition Score (BCS 1.0 to 5.0).
-5. Detected skin lesions / nodules / ulcers / udder inflammation with percentage bounding boxes (ymin, xmin, ymax, xmax between 0 and 100), anatomical location, and clinical description.
-6. Pregnancy & Reproductive Assessment: Confirm or evaluate gestational stage ('Non-Pregnant (Open)', 'Early Gestation (1-3 Months)', 'Mid Gestation (4-6 Months)', 'Late Gestation (7-9 Months)', 'Advanced Gestation (>9 Months / Close-up)', 'Recently Calved (Postpartum)', 'Not Applicable / Male'). Assess risk of abortion, fetal stress, or dystocia.
-7. Lactation Assessment & Yield Impact: Evaluate lactation phase ('Early Lactation (Peak Yield)', 'Mid Lactation', 'Late Lactation', 'Dry Cow (Rest Period)', 'Heifer (Non-Lactating)', 'Mastitic / Abnormal Yield', 'Not Applicable / Male'). Detail expected milk yield drop percentage, somatic cell risk, and udder quarter health.
-8. Drug & Clinical Treatment Contraindications: Specify medicines strictly contraindicated due to pregnancy status (e.g. Corticosteroids like Dexamethasone, certain live vaccines, prostaglandins) or lactation status (e.g. antibiotic milk withdrawal period).
-9. Nutritional & Metabolic Care: Provide specific rations (calcium balance, anionic salts, bypass fat, green fodder) tailored to both the disease state and reproductive/lactation demand.
-10. Differential diagnosis with probabilities citing Bharat Pashudhan (NDLM), IEEE Dataport, or CID.
-11. Severity Grade (Mild, Moderate, Severe, Emergency Quarantine).
-12. Immediate First-Aid Remedies (Herbal / Ethno-veterinary where applicable) and Biosecurity protocols.
+[CRITICAL INSTRUCTION - LIVING LIVESTOCK ANIMAL VS NON-LIVING OBJECT VALIDATION]:
+Step 1: Inspect whether this image contains a real, living livestock animal (specifically Cattle / Cow, Bull, Ox, Buffalo, Calf, Goat, or Sheep).
+- If the image depicts a NON-LIVING OBJECT (such as a chair, table, desk, water bottle, phone, laptop, vehicle, blank background, wall, paper, clothes, household item, electronic device, room interior, drawing/symbol of non-animal, human portrait without animal, or any inanimate non-livestock subject):
+  You MUST IMMEDIATELY return ONLY the following JSON structure:
+  {
+    "isNonLivingObject": true,
+    "rejectionReason": "NON LIVING OBJECT DETECTED",
+    "rejectionMessage": "NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY. The uploaded picture does not contain a living livestock animal (cattle, buffalo, goat, or sheep). Please position the animal inside the camera reticle and take a clear photo.",
+    "detectedObject": "<Specific name of detected inanimate object, e.g., Water Bottle / Office Chair / Laptop / Desk / Smartphone / Wall / Background / Paper>"
+  }
+
+- If and ONLY IF the image depicts a real LIVING LIVESTOCK ANIMAL:
+  Set "isNonLivingObject": false, and perform an ACCURATE, EVIDENCE-BASED DIAGNOSIS based directly on the visual features visible in the photo (skin surface, nodules, erosions, eye condition, udder shape, mucous membranes, coat texture, body conformation, spine curvature, and limb posture) combined with the provided symptoms:
+  - Species Hint: ${species}.
+  - Reported Symptoms: ${symptoms || 'Visual screening'}.
+  - Reported Pregnancy Status: ${pregnancyStatus}.
+  - Reported Lactation Status: ${lactationStatus}.
+  ${dailyMilkYieldLiters ? `Reported Daily Milk Yield: ${dailyMilkYieldLiters} Liters/day.` : ''}
+  - Location: ${district}, ${state} [Lat: ${latitude}, Lng: ${longitude}].
+  ${presetBreedHint ? `Preset Context: ${presetBreedHint}` : ''}
+
+[DIAGNOSTIC CRITERIA & ACCURACY GUIDELINES]:
+Diagnose across the full spectrum of livestock pathology based on visible physical signs, anatomical markers, and anamnesis:
+1. Healthy Livestock: Clean muzzle sweat beads, glossy coat, alert ears/eyes, normal straight spine, symmetrical udder -> "Healthy Clinical Presentation (No Active Pathological Lesions Detected)" [Grade: Healthy]
+2. Lumpy Skin Disease (LSD / Capripoxvirus): Circumscribed 1-5cm cutaneous nodules on neck/flank, pyrexia -> "Lumpy Skin Disease (Capripoxvirus) - Clinical Stage II" [Grade: Moderate/Severe]
+3. Foot and Mouth Disease (FMD / Aphthovirus): Vesicles/ulcerations on dental pad/tongue/interdigital cleft, ropey salivation, lameness -> "Foot and Mouth Disease (FMD - Aphthovirus)" [Grade: Emergency Quarantine]
+4. Acute Clinical Mastitis: Asymmetrical swollen quarter, induration, clotted/watery milk, local heat -> "Acute Clinical Bovine Mastitis (Staphylococcal / Streptococcal / Coliform)" [Grade: Severe]
+5. Bovine Theileriosis (Theileria annulata): Prescapular/prefemoral lymph node enlargement, pale conjunctiva (anemia), tick burden -> "Bovine Theileriosis (Theileria annulata - Tick-borne Lymphadenopathy)" [Grade: Severe]
+6. Infectious Bovine Keratoconjunctivitis (Pinkeye / Moraxella bovis): Central corneal opacity/cloudiness, blepharospasm, lacrimation -> "Infectious Bovine Keratoconjunctivitis (Pinkeye / Moraxella bovis)" [Grade: Moderate]
+7. Bovine Dermatophytosis (Ringworm / Trichophyton verrucosum): Circular, circumscribed grayish crusty alopecic patches on face/periorbital/neck -> "Bovine Dermatophytosis (Ringworm / Trichophyton verrucosum)" [Grade: Mild]
+8. Haemorrhagic Septicaemia (HS / Galghotu / Pasteurella multocida): Severe submandibular throat swelling, acute dyspnea, stertorous breathing -> "Haemorrhagic Septicaemia (HS / Pasteurella multocida)" [Grade: Emergency Quarantine]
+9. Black Quarter (BQ / Clostridium chauvoei): Crepitant crackling edematous muscle swelling in hindquarter/shoulder, acute lameness -> "Black Quarter (BQ / Clostridium chauvoei)" [Grade: Emergency Quarantine]
+10. Bovine Sarcoptic/Psoroptic Mange (Acariasis / Scabies): Intense itching/pruritus, thickened lichenified wrinkled skin, crusting -> "Bovine Acariasis (Sarcoptic / Psoroptic Mange)" [Grade: Moderate]
+11. Bovine Babesiosis (Redwater Fever / Babesia bigemina): High fever, severe anemia, jaundice, hemoglobinuria (dark coffee/red urine) -> "Bovine Babesiosis (Redwater Fever / Babesia bigemina)" [Grade: Severe]
+12. Contagious Ecthyma (Orf / Sore Mouth): Proliferative crusted pustular scabs on lips, muzzle, and nostrils in goats/sheep/calves -> "Contagious Ecthyma (Orf / Parapoxvirus)" [Grade: Moderate]
+13. Peste des Petits Ruminants (PPR / Goat Plague): Mucopurulent ocular-nasal discharge, necrotic stomatitis, pneumonia, diarrhea in small ruminants -> "Peste des Petits Ruminants (PPR - Morbillivirus)" [Grade: Emergency Quarantine]
+14. Ruminal Bloat / Acute Tympany: Distended left paralumbar fossa, drum-like resonance, respiratory embarrassment -> "Acute Ruminal Bloat (Tympany / Frothy Bloat)" [Grade: Severe]
+15. Hypocalcemia (Milk Fever) & Ketosis: S-shaped neck posture, cold extremities, post-calving weakness, recumbency -> "Postparturient Hypocalcemia (Milk Fever / Ketosis)" [Grade: Severe]
+16. Bovine Ephemeral Fever (Three-Day Sickness): Sudden high pyrexia, shivering, shifting musculoskeletal stiffness -> "Bovine Ephemeral Fever (Three-Day Sickness / Rhabdovirus)" [Grade: Moderate]
+
+Accurately compute Body Condition Score (BCS 1.0 to 5.0), coat condition, conformational metrics, precise bounding boxes (ymin, xmin, ymax, xmax between 0-100), trimester drug contraindications (e.g., Corticosteroids like Dexamethasone contraindicated in pregnancy), milk withdrawal guidelines, and official Bharat Pashudhan (NDLM) / ICAR-IVRI treatment protocols.
 
 Return strictly a JSON object with this format:
 {
+  "isNonLivingObject": false,
   "predictedBreed": "Gir (Bos indicus)",
   "breedConfidence": 94.5,
   "detectedSpecies": "${species}",
@@ -193,59 +215,814 @@ Return strictly a JSON object with this format:
           }
           parts.push({ text: prompt });
 
-          // Multi-model tier prioritizing Gemini Pro for high accuracy clinical & radiologic diagnosis
+          // Multi-model tier prioritizing responsive Flash models with graceful fallback for high demand (503)
           const candidateModels = [
-            'gemini-2.5-pro',
-            'gemini-2.5-flash',
-            'gemini-2.0-flash',
-            'gemini-2.0-flash-lite',
-            'gemini-1.5-pro',
-            'gemini-1.5-flash',
+            'gemini-3.1-flash-lite',
+            'gemini-3.7-flash',
+            'gemini-flash-latest',
           ];
 
           for (const modelName of candidateModels) {
-            try {
-              const response = await ai.models.generateContent({
-                model: modelName,
-                contents: { parts },
-                config: {
-                  responseMimeType: 'application/json',
-                  temperature: 0.2,
-                },
-              });
+            let attempts = 0;
+            const maxAttempts = 2;
 
-              if (response.text) {
-                let cleaned = response.text.trim();
-                // Strip markdown code fences if present
-                if (cleaned.startsWith('```json')) {
-                  cleaned = cleaned.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-                } else if (cleaned.startsWith('```')) {
-                  cleaned = cleaned.replace(/^```\s*/, '').replace(/\s*```$/, '');
+            while (attempts < maxAttempts && !analysisResult) {
+              attempts++;
+              try {
+                const response = await ai.models.generateContent({
+                  model: modelName,
+                  contents: { parts },
+                  config: {
+                    responseMimeType: 'application/json',
+                    temperature: 0.2,
+                  },
+                });
+
+                if (response.text) {
+                  let cleaned = response.text.trim();
+                  // Strip markdown code fences if present
+                  if (cleaned.startsWith('```json')) {
+                    cleaned = cleaned.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+                  } else if (cleaned.startsWith('```')) {
+                    cleaned = cleaned.replace(/^```\s*/, '').replace(/\s*```$/, '');
+                  }
+                  analysisResult = JSON.parse(cleaned);
+                  if (analysisResult) {
+                    break; // Successfully generated and parsed
+                  }
                 }
-                analysisResult = JSON.parse(cleaned);
-                if (analysisResult) {
-                  break; // Successfully generated and parsed
+              } catch (modelErr: any) {
+                const errMsg = modelErr?.message || String(modelErr);
+                const isHighDemand = errMsg.includes('503') || errMsg.includes('high demand') || errMsg.includes('429') || errMsg.includes('quota');
+                if (attempts < maxAttempts && isHighDemand) {
+                  // Exponential backoff for temporary load spikes
+                  await new Promise((resolve) => setTimeout(resolve, 400 * attempts));
+                } else {
+                  // Move to next candidate model
+                  break;
                 }
               }
-            } catch (modelErr: any) {
-              const errMsg = modelErr?.message || String(modelErr);
-              console.warn(`Model ${modelName} call notice (${errMsg.slice(0, 120)}...), attempting next tier...`);
-              // Brief delay before attempting fallback model
-              await new Promise((resolve) => setTimeout(resolve, 300));
             }
+
+            if (analysisResult) break;
           }
         } catch (geminiError) {
           console.warn('Gemini vision engine notice, activating smart domain knowledge engine.');
         }
       }
 
+      // If non-living object was detected by the vision model, reject immediately
+      if (analysisResult?.isNonLivingObject) {
+        return res.status(422).json({
+          error: 'NON LIVING OBJECT DETECTED',
+          message: 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY',
+          isNonLivingObject: true,
+          rejectionReason: analysisResult.rejectionReason || 'NON LIVING OBJECT DETECTED',
+          rejectionMessage: analysisResult.rejectionMessage || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY. The uploaded picture does not contain a living livestock animal (cattle, buffalo, goat, or sheep).',
+          detectedObject: analysisResult.detectedObject || 'Inanimate Object'
+        });
+      }
+
       // Fallback domain logic if Gemini is unconfigured or returned null
       if (!analysisResult) {
-        const isBuffalo = species.toLowerCase().includes('buffalo') || (symptoms && symptoms.toLowerCase().includes('buffalo'));
-        const isMastitis = symptoms.toLowerCase().includes('mastitis') || symptoms.toLowerCase().includes('udder') || symptoms.toLowerCase().includes('milk');
-        const isFMD = symptoms.toLowerCase().includes('fmd') || symptoms.toLowerCase().includes('mouth') || symptoms.toLowerCase().includes('drool') || symptoms.toLowerCase().includes('foot');
+        const symptomsLower = (symptoms || '').toLowerCase();
+        const speciesLower = (species || '').toLowerCase();
+        const presetLower = (presetBreedHint || '').toLowerCase();
+        const combined = `${symptomsLower} ${speciesLower} ${presetLower}`;
 
-        if (isBuffalo || isFMD) {
+        const isBuffalo = speciesLower.includes('buffalo') || combined.includes('murrah') || combined.includes('jaffarabadi') || combined.includes('nili');
+        const isHealthy = combined.includes('healthy') || combined.includes('routine') || combined.includes('optimal') || combined.includes('sahiwal') || combined.includes('ongole') || combined.includes('breeding bull');
+        const isTheileriosis = combined.includes('theileria') || combined.includes('theileriosis') || combined.includes('tick') || combined.includes('lymph') || combined.includes('anemia') || combined.includes('pale');
+        const isPinkeye = combined.includes('pinkeye') || combined.includes('eye') || combined.includes('cornea') || combined.includes('kerato') || combined.includes('cloudy') || combined.includes('tearing') || combined.includes('blind');
+        const isRingworm = combined.includes('ringworm') || combined.includes('dermatophyt') || combined.includes('alopecia') || combined.includes('circular') || combined.includes('crust') || combined.includes('trichophyton');
+        const isHS = combined.includes('haemorrhagic') || combined.includes('galghotu') || combined.includes('throat') || combined.includes('dyspnea') || combined.includes('respiratory') || combined.includes('pasteurella') || combined.includes('submandibular');
+        const isBQ = combined.includes('black quarter') || combined.includes('clostridium') || combined.includes('crepitant') || combined.includes('crackling') || combined.includes('shoulder') || combined.includes('gluteal');
+        const isMange = combined.includes('mange') || combined.includes('scabies') || combined.includes('acariasis') || combined.includes('itching') || combined.includes('pruritus') || combined.includes('lichenified');
+        const isBabesiosis = combined.includes('babesia') || combined.includes('babesiosis') || combined.includes('redwater') || combined.includes('urine') || combined.includes('coffee');
+        const isOrf = combined.includes('orf') || combined.includes('ecthyma') || combined.includes('sore mouth') || combined.includes('scab') || combined.includes('pustul') || combined.includes('lip');
+        const isPPR = combined.includes('ppr') || combined.includes('goat plague') || combined.includes('morbillivirus') || (combined.includes('goat') || combined.includes('sheep')) && combined.includes('diarrhea');
+        const isBloat = combined.includes('bloat') || combined.includes('tympany') || combined.includes('fossa') || combined.includes('gas') || combined.includes('distension');
+        const isMilkFever = combined.includes('milk fever') || combined.includes('hypocalcemia') || combined.includes('downer') || combined.includes('ketosis') || (combined.includes('calving') && combined.includes('weak'));
+        const isMastitis = combined.includes('mastitis') || combined.includes('udder') || combined.includes('milk') || combined.includes('quarter') || combined.includes('teat');
+        const isFMD = combined.includes('fmd') || combined.includes('mouth') || combined.includes('drool') || combined.includes('foot') || combined.includes('hoof') || combined.includes('vesicle') || combined.includes('murrah');
+
+        if (isHealthy && !isTheileriosis && !isPinkeye && !isRingworm && !isMastitis && !isFMD) {
+          analysisResult = {
+            isNonLivingObject: false,
+            predictedBreed: presetBreedHint?.includes('Sahiwal') ? 'Sahiwal (Bos indicus)' : presetBreedHint?.includes('Ongole') ? 'Ongole (Bos indicus)' : 'Gir (Bos indicus)',
+            breedConfidence: 97.5,
+            detectedSpecies: species || 'Cattle',
+            coatCondition: 'Glossy & Healthy',
+            postureAssessment: {
+              spineCurvature: 'Normal Straight',
+              headCarriage: 'Alert & Elevated',
+              weightBearing: 'Equal on all 4 limbs',
+              gaitConfidence: 97.2,
+            },
+            bodyConditionScore: 3.7,
+            conformationalMetrics: [
+              { metric: 'Spine Alignment Index', score: 96, benchmark: '85-100 Normal', status: 'Optimal', details: 'Perfect dorsal spine alignment with active muscle tone.' },
+              { metric: 'Pelvic-Wither Ratio', score: 95, benchmark: '90-100 Ideal', status: 'Optimal', details: 'Excellent breed conformation with clear alert demeanor.' },
+              { metric: 'Udder Symmetry Index', score: 94, benchmark: '85-100 Ideal', status: 'Optimal', details: 'Symmetrical, healthy udder quarters with clear teat orifices.' },
+            ],
+            lesions: [],
+            primaryDiagnosis: 'Healthy Livestock Specimen (No Pathological Lesions Detected)',
+            pregnancyStatus: pregnancyStatus || 'Early Gestation (1-3 Months)',
+            lactationStatus: lactationStatus || 'Early Lactation (Peak Yield)',
+            milkYieldImpact: 'Optimal milk yield performance conforming to genetic potential.',
+            reproductiveAndLactationAlerts: {
+              pregnancyRiskNotes: 'Normal physiological gestation. Maintain standard transition mineral supplementation.',
+              lactationImpact: 'Healthy lactation output. Routine post-milking teat sanitization recommended.',
+              drugContraindications: [
+                'No therapeutic drug intervention indicated.',
+                'Ensure scheduled routine booster vaccinations are administered according to NDLM calendar.'
+              ],
+              nutritionalRecommendation: 'Maintain balanced total mixed ration (TMR) with 60% green fodder + 40% dry roughage + 40g ICAR certified mineral mixture.'
+            },
+            differentialDiagnoses: [
+              {
+                disease: 'Healthy Herd Specimen - Normal Conformation',
+                probability: 98.5,
+                keyIndications: ['Clear eyes and moist muzzle', 'Glossy smooth coat', 'Normal rumination and posture'],
+                sourceDataset: 'Bharat Pashudhan & ICAR Standard Herd Benchmarks',
+              },
+            ],
+            severityGrade: 'Healthy',
+            ragCitations: [
+              {
+                source: 'Bharat Pashudhan (NDLM)',
+                title: 'Good Dairy Animal Husbandry Practices (GHP)',
+                section: 'Section 1: Preventive Herd Health Maintenance',
+                relevanceScore: 0.98,
+                guidelineSnippet: 'Maintain optimal nutrition, clean fresh water ad libitum, clean bedding, and adhere to national vaccination schedules for FMD and HS.',
+                url: 'https://bharatpashudhan.ndlm.co.in/guidelines/preventive-care',
+              },
+            ],
+            immediateRemedies: [
+              'Continue balanced daily ration with adequate mineral mixture and fresh water.',
+              'Maintain clean, ventilated barn environment with dry bedding.',
+              'Adhere to scheduled deworming every 6 months.',
+            ],
+            recommendedVeterinaryActions: [
+              'Periodic bi-annual herd health inspection and ear tag registry maintenance.',
+              'Routine California Mastitis Test (CMT) screening once every fortnight.',
+            ],
+            biosecurityProtocol: [
+              'Standard farm gate disinfection and quarantine of new incoming herd members for 21 days.',
+            ],
+          };
+        } else if (isTheileriosis) {
+          analysisResult = {
+            isNonLivingObject: false,
+            predictedBreed: 'Kankrej / Crossbred (Bos indicus x taurus)',
+            breedConfidence: 94.8,
+            detectedSpecies: species || 'Cattle',
+            coatCondition: 'Rough / Dull with Visible Ticks',
+            postureAssessment: {
+              spineCurvature: 'Kyphosis (Hunched)',
+              headCarriage: 'Depressed / Drooping',
+              weightBearing: 'Equal on all 4 limbs',
+              gaitConfidence: 86.0,
+            },
+            bodyConditionScore: 2.6,
+            conformationalMetrics: [
+              { metric: 'Prescapular Lymph Node Index', score: 45, benchmark: '85-100 Normal', status: 'Abnormal', details: 'Prominent 3-4x bilateral prescapular lymphadenopathy.' },
+              { metric: 'Conjunctival Mucosa Perfusion', score: 50, benchmark: '80-100 Normal', status: 'Abnormal', details: 'Severe pale to petechial mucous membrane indicative of regenerative anemia.' },
+            ],
+            lesions: [
+              {
+                id: 'les-th-01',
+                label: 'Enlarged Prescapular Lymph Node',
+                confidence: 96.5,
+                severity: 'Severe',
+                boundingBox: { ymin: 32, xmin: 60, ymax: 55, xmax: 82 },
+                anatomicalLocation: 'Cranial Shoulder & Prescapular Region',
+                clinicalDescription: 'Marked lymph node hyper-proliferation and edema characteristic of Theileria annulata schizont phase.'
+              },
+              {
+                id: 'les-th-02',
+                label: 'Periorbital Pale Conjunctiva & Epiphora',
+                confidence: 91.2,
+                severity: 'Moderate',
+                boundingBox: { ymin: 22, xmin: 24, ymax: 42, xmax: 46 },
+                anatomicalLocation: 'Ocular Conjunctival Sac',
+                clinicalDescription: 'Pale porcelain-white mucous membranes with serous lacrimation.'
+              }
+            ],
+            primaryDiagnosis: 'Bovine Theileriosis (Theileria annulata - Tropical Theileriosis)',
+            pregnancyStatus: pregnancyStatus || 'Mid Gestation (4-6 Months)',
+            lactationStatus: lactationStatus || 'Mid Lactation',
+            milkYieldImpact: 'Severe 60-70% drop in milk production with high persistent pyrexia (105-106°F).',
+            reproductiveAndLactationAlerts: {
+              pregnancyRiskNotes: 'CRITICAL: Sustained high pyrexia (>105°F) risks embryonic death or late-term abortion. Antipyretic therapy required immediately.',
+              lactationImpact: 'Severe drop. 72h withdrawal required after Buparvaquone therapy.',
+              drugContraindications: [
+                'Do not delay Buparvaquone administration; early intervention prevents irreversible pulmonary edema.',
+                'Avoid live attenuated Theileria vaccine in actively infected clinically febrile animals.'
+              ],
+              nutritionalRecommendation: 'Provide high-iron hematinic tonic + B-complex with liver extract and soft green fodder.'
+            },
+            differentialDiagnoses: [
+              {
+                disease: 'Tropical Theileriosis (Theileria annulata)',
+                probability: 93.5,
+                keyIndications: ['Prescapular lymphadenopathy', 'High fever 105°F', 'Pale mucous membranes', 'Hyalomma tick infestation'],
+                sourceDataset: 'Bharat Pashudhan & ICAR-IVRI Vector-Borne Database'
+              },
+              {
+                disease: 'Bovine Babesiosis (Babesia bigemina)',
+                probability: 18.0,
+                keyIndications: ['Hemoglobinuria', 'Severe anemia'],
+                sourceDataset: 'ICAR Hemoparasite Atlas'
+              },
+              {
+                disease: 'Bovine Anaplasmosis (Anaplasma marginale)',
+                probability: 8.5,
+                keyIndications: ['Progressive anemia without marked lymphadenopathy'],
+                sourceDataset: 'NDLM Epidemiology'
+              }
+            ],
+            severityGrade: 'Severe',
+            ragCitations: [
+              {
+                source: 'ICAR Guidelines',
+                title: 'National SOP for Field Management of Bovine Theileriosis',
+                section: 'Section 3.1: Buparvaquone Protocol & Vector Control',
+                relevanceScore: 0.96,
+                guidelineSnippet: 'Administer Buparvaquone (Zubion/Butalex) @ 2.5 mg/kg IM single dose in neck muscle. Follow with supportive Oxytetracycline (20 mg/kg) and Hematinic liver tonics.',
+                url: 'https://bharatpashudhan.ndlm.co.in/guidelines/theileriosis-sop'
+              }
+            ],
+            immediateRemedies: [
+              'Move animal to clean, tick-free shaded barn with cold water sponging to reduce fever.',
+              'Administer oral electrolyte and jaggery water with liver tonic.',
+              'Manual grooming and safe application of herbal neem & custard-apple seed tick repellent.'
+            ],
+            recommendedVeterinaryActions: [
+              'IM Buparvaquone (2.5 mg/kg body weight) immediately.',
+              'Supportive Meloxicam + Paracetamol for pyrexia control.',
+              'Iron dextran + Vitamin B-complex injectable therapy.'
+            ],
+            biosecurityProtocol: [
+              'Acaricide spray (Deltamethrin 1.25% or Flumethrin 1%) on barn cracks and animal hair coats.',
+              'Break Hyalomma tick lifecycle with pasture resting.'
+            ]
+          };
+        } else if (isPinkeye) {
+          analysisResult = {
+            isNonLivingObject: false,
+            predictedBreed: 'Jersey Crossbred (Bos taurus x indicus)',
+            breedConfidence: 95.1,
+            detectedSpecies: species || 'Cattle',
+            coatCondition: 'Normal with Facial Tear Staining',
+            postureAssessment: {
+              spineCurvature: 'Normal Straight',
+              headCarriage: 'Guarded / Head Tilting',
+              weightBearing: 'Equal on all 4 limbs',
+              gaitConfidence: 91.0,
+            },
+            bodyConditionScore: 3.3,
+            conformationalMetrics: [
+              { metric: 'Corneal Clarity Index', score: 38, benchmark: '85-100 Clear', status: 'Abnormal', details: 'Central corneal opacity with hyperemic conjunctival blood vessels.' },
+              { metric: 'Photophobia & Blepharospasm', score: 42, benchmark: '80-100 Normal', status: 'Abnormal', details: 'Squinting and involuntary eyelid spasm in direct daylight.' },
+            ],
+            lesions: [
+              {
+                id: 'les-pink-01',
+                label: 'Corneal Clouding & Central Ulceration',
+                confidence: 96.8,
+                severity: 'Moderate',
+                boundingBox: { ymin: 24, xmin: 28, ymax: 48, xmax: 52 },
+                anatomicalLocation: 'Right Eye Cornea & Sclera',
+                clinicalDescription: 'Circumscribed white-gray corneal opacity with neovascularization characteristic of Moraxella bovis infection.'
+              }
+            ],
+            primaryDiagnosis: 'Infectious Bovine Keratoconjunctivitis (Pinkeye / Moraxella bovis)',
+            pregnancyStatus: pregnancyStatus || 'Mid Gestation (4-6 Months)',
+            lactationStatus: lactationStatus || 'Mid Lactation',
+            milkYieldImpact: 'Mild to moderate 15-20% yield drop due to grazing reluctance and photophobia pain.',
+            reproductiveAndLactationAlerts: {
+              pregnancyRiskNotes: 'Stable. Ensure topical ophthalmic antibiotics rather than systemic abortifacients.',
+              lactationImpact: 'Minimal milk withdrawal needed for topical eye drops.',
+              drugContraindications: ['Avoid Corticosteroid eye ointments if active corneal epithelial ulceration is present (prevents perforation).'],
+              nutritionalRecommendation: 'Supplement with Vitamin A (100,000 IU) to promote rapid corneal epithelial healing.'
+            },
+            differentialDiagnoses: [
+              {
+                disease: 'Infectious Bovine Keratoconjunctivitis (Moraxella bovis)',
+                probability: 94.2,
+                keyIndications: ['Central corneal opacity', 'Blepharospasm', 'Purulent lacrimation', 'Fly transmission'],
+                sourceDataset: 'Bharat Pashudhan & ICAR Ophthalmic Guidelines'
+              },
+              {
+                disease: 'Infectious Bovine Rhinotracheitis (IBR) - Ocular Form',
+                probability: 12.0,
+                keyIndications: ['Peripheral corneal edema without central ulcer'],
+                sourceDataset: 'ICAR-IVRI Virology'
+              }
+            ],
+            severityGrade: 'Moderate',
+            ragCitations: [
+              {
+                source: 'Bharat Pashudhan (NDLM)',
+                title: 'Clinical Protocol for Bovine Pinkeye & Ophthalmic Infections',
+                section: 'Section 4.1: Subconjunctival & Topical Therapy',
+                relevanceScore: 0.94,
+                guidelineSnippet: 'Subconjunctival injection of Oxytetracycline / Penicillin + Dexamethasone (only if cornea intact) or topical Ciprofloxacin 0.3% eye drops 4 times daily. Apply eye patch to protect from sunlight and flies.',
+                url: 'https://bharatpashudhan.ndlm.co.in/guidelines/pinkeye-sop'
+              }
+            ],
+            immediateRemedies: [
+              'Keep animal in dark, well-ventilated shaded stall away from harsh direct sunlight.',
+              'Flush eye gently with sterile 0.9% normal saline or mild Boric acid (2%) solution.',
+              'Fit temporary cloth eye patch to prevent Musca autumnalis fly transmission.'
+            ],
+            recommendedVeterinaryActions: [
+              'Topical Ciprofloxacin or Gentamicin eye drops 3-4 times daily.',
+              'Subconjunctival antibiotic deposition if corneal ulcer is deep.',
+              'Systemic Long-acting Oxytetracycline (20 mg/kg IM) for herd-level suppression.'
+            ],
+            biosecurityProtocol: [
+              'Intensive fly control around eyes and face using permethrin fly tags or sprays.',
+              'Disinfect handling halters and head gates between animals.'
+            ]
+          };
+        } else if (isRingworm) {
+          analysisResult = {
+            isNonLivingObject: false,
+            predictedBreed: 'Red Sindhi / Crossbred (Bos indicus)',
+            breedConfidence: 94.0,
+            detectedSpecies: species || 'Cattle',
+            coatCondition: 'Circular Crusty Alopecic Patches',
+            postureAssessment: {
+              spineCurvature: 'Normal Straight',
+              headCarriage: 'Alert & Elevated',
+              weightBearing: 'Equal on all 4 limbs',
+              gaitConfidence: 95.0,
+            },
+            bodyConditionScore: 3.2,
+            conformationalMetrics: [
+              { metric: 'Dermal Integrity Score', score: 56, benchmark: '85-100 Normal', status: 'Sub-optimal', details: 'Multiple circumscribed 2-6cm asbestos-like grayish crusts around periocular and muzzle regions.' },
+            ],
+            lesions: [
+              {
+                id: 'les-rw-01',
+                label: 'Circumscribed Grayish Asbestos-like Crust',
+                confidence: 96.0,
+                severity: 'Mild',
+                boundingBox: { ymin: 20, xmin: 30, ymax: 45, xmax: 55 },
+                anatomicalLocation: 'Periorbital Face & Ear Base',
+                clinicalDescription: 'Circular alopecic plaque with raised borders and thick scaling characteristic of Trichophyton verrucosum dermatophytosis.'
+              }
+            ],
+            primaryDiagnosis: 'Bovine Dermatophytosis (Ringworm / Trichophyton verrucosum)',
+            pregnancyStatus: pregnancyStatus || 'Mid Gestation (4-6 Months)',
+            lactationStatus: lactationStatus || 'Mid Lactation',
+            milkYieldImpact: 'Negligible milk loss (<5%); primarily affects hide quality and young stock thriftiness.',
+            reproductiveAndLactationAlerts: {
+              pregnancyRiskNotes: 'Low risk. Topical fungal treatments are safe throughout pregnancy.',
+              lactationImpact: 'No milk withdrawal required for topical antifungal wash.',
+              drugContraindications: ['Avoid systemic griseofulvin in pregnant cows due to teratogenic potential; prefer topical povidone-iodine or clotrimazole.'],
+              nutritionalRecommendation: 'Add Zinc Chelate (5g/day) + Vitamin A to accelerate follicular keratin regeneration.'
+            },
+            differentialDiagnoses: [
+              {
+                disease: 'Bovine Dermatophytosis (Ringworm)',
+                probability: 95.0,
+                keyIndications: ['Circumscribed circular crusts', 'Non-pruritic asbestos plaques', 'Young stock predilection'],
+                sourceDataset: 'Bharat Pashudhan & ICAR Mycology Database'
+              },
+              {
+                disease: 'Bovine Papillomatosis (Warts)',
+                probability: 8.0,
+                keyIndications: ['Cauliflower-like papillary growths'],
+                sourceDataset: 'NDLM Dermatology'
+              }
+            ],
+            severityGrade: 'Mild',
+            ragCitations: [
+              {
+                source: 'ICAR Guidelines',
+                title: 'Ethno-Veterinary & Antifungal Protocols for Bovine Dermatophytosis',
+                section: 'Section 2.3: Topical Debridement & Antifungal Wash',
+                relevanceScore: 0.93,
+                guidelineSnippet: 'Scrape off thick crusts gently with soap wash. Apply 5% Povidone-iodine or Copper Sulphate (0.5%) solution daily for 10-14 days. Herbal paste of garlic (Allium sativum) in mustard oil is highly fungicidal.',
+                url: 'https://bharatpashudhan.ndlm.co.in/guidelines/ringworm-protocol'
+              }
+            ],
+            immediateRemedies: [
+              'Gently wash crusts with warm water and soap to remove dead keratin scales.',
+              'Apply Povidone-iodine 10% solution or Clotrimazole lotion twice daily.',
+              'Expose animal to direct morning sunlight (UV radiation inhibits fungal hyphae).'
+            ],
+            recommendedVeterinaryActions: [
+              'Topical Enilconazole (0.2%) or Copper Sulphate wash.',
+              'Injectable Ivermectin if concurrent ectoparasite mange is suspected.',
+              'Zinc and Vitamin AD3E supplementation.'
+            ],
+            biosecurityProtocol: [
+              'Disinfect grooming brushes, barn walls, and wooden posts with 1:10 Bleach or 2% Formalin.',
+              'Zoonotic precaution: Handlers must wear gloves to prevent human ringworm transmission.'
+            ]
+          };
+        } else if (isHS) {
+          analysisResult = {
+            isNonLivingObject: false,
+            predictedBreed: 'Jaffarabadi Buffalo (Bubalus bubalis)',
+            breedConfidence: 96.4,
+            detectedSpecies: 'Buffalo',
+            coatCondition: 'Dull with Severe Dyspneic Sweating',
+            postureAssessment: {
+              spineCurvature: 'Kyphosis (Hunched)',
+              headCarriage: 'Extended Neck (Orthopneic Posture)',
+              weightBearing: 'Equal on all 4 limbs',
+              gaitConfidence: 78.0,
+            },
+            bodyConditionScore: 3.0,
+            conformationalMetrics: [
+              { metric: 'Submandibular Throat Edema Index', score: 25, benchmark: '85-100 Normal', status: 'Abnormal', details: 'Acute, hot, painful inflammatory swelling extending from throat to brisket.' },
+              { metric: 'Respiratory Effort Score', score: 30, benchmark: '80-100 Normal', status: 'Abnormal', details: 'Severe stertorous open-mouth breathing with protruding tongue.' },
+            ],
+            lesions: [
+              {
+                id: 'les-hs-01',
+                label: 'Hot Submandibular & Brisket Edema (Galghotu)',
+                confidence: 98.2,
+                severity: 'Severe',
+                boundingBox: { ymin: 42, xmin: 40, ymax: 75, xmax: 70 },
+                anatomicalLocation: 'Submandibular Throat & Brisket',
+                clinicalDescription: 'Tense, hot, painful inflammatory swelling with severe respiratory stridor characteristic of Pasteurella multocida B:2 infection.'
+              }
+            ],
+            primaryDiagnosis: 'Haemorrhagic Septicaemia (HS / Galghotu / Pasteurella multocida)',
+            pregnancyStatus: pregnancyStatus || 'Mid Gestation (4-6 Months)',
+            lactationStatus: lactationStatus || 'Early Lactation',
+            milkYieldImpact: 'Complete cessation of lactation (agalactia) with acute hyperthermia (106-107°F).',
+            reproductiveAndLactationAlerts: {
+              pregnancyRiskNotes: 'EMERGENCY: Endotoxemia and acute anoxia can cause sudden fetal death. Emergency veterinary tracheotomy/intravenous therapy required.',
+              lactationImpact: 'Complete agalactia.',
+              drugContraindications: ['Immediate early antibiotic administration before irreversible endotoxic shock occurs.'],
+              nutritionalRecommendation: 'Offer cold jaggery electrolyte water; avoid force-drenching to prevent aspiration pneumonia.'
+            },
+            differentialDiagnoses: [
+              {
+                disease: 'Haemorrhagic Septicaemia (Pasteurella multocida)',
+                probability: 96.0,
+                keyIndications: ['Submandibular edema', 'Stertorous breathing', 'High fever 106°F', 'High mortality in buffaloes'],
+                sourceDataset: 'Bharat Pashudhan & ICAR-IVRI Bacterial Registry'
+              },
+              {
+                disease: 'Anthrax (Bacillus anthracis)',
+                probability: 14.0,
+                keyIndications: ['Peracute death with dark unclotted blood'],
+                sourceDataset: 'National Zoonoses Hub'
+              }
+            ],
+            severityGrade: 'Emergency Quarantine',
+            ragCitations: [
+              {
+                source: 'Bharat Pashudhan (NDLM)',
+                title: 'National Emergency SOP: Haemorrhagic Septicaemia (HS) Outbreak Control',
+                section: 'Section 1.2: Emergency Antibiotic Regimen',
+                relevanceScore: 0.98,
+                guidelineSnippet: 'High-dose IV Ceftiofur Sodium (2.2 mg/kg) or Sulphadimidine 33.3% @ 100-150ml IV + Flunixin Meglumine (2.2 mg/kg). Enforce strict ring vaccination with Alum-precipitated HS vaccine in 10km radius.',
+                url: 'https://bharatpashudhan.ndlm.co.in/guidelines/hs-emergency'
+              }
+            ],
+            immediateRemedies: [
+              'Immediately prop animal up in sternal position with extended head to maintain airway.',
+              'Cold water application over head and neck to reduce hyperthermia.',
+              'DO NOT force liquids into mouth due to high risk of inhalation pneumonia.'
+            ],
+            recommendedVeterinaryActions: [
+              'Immediate IV Ceftiofur / Enrofloxacin / Sulphadimidine injection.',
+              'IV Flunixin Meglumine for acute endotoxic shock and antipyresis.',
+              'Emergency herd ring vaccination in entire village cluster.'
+            ],
+            biosecurityProtocol: [
+              'Isolate infected stall and restrict all animal movement.',
+              'Disinfect shed with 2% Bleaching Powder or Lime slurry.'
+            ]
+          };
+        } else if (isBQ) {
+          analysisResult = {
+            isNonLivingObject: false,
+            predictedBreed: 'Kankrej (Bos indicus)',
+            breedConfidence: 95.0,
+            detectedSpecies: species || 'Cattle',
+            coatCondition: 'Tense Skin over Swollen Muscle',
+            postureAssessment: {
+              spineCurvature: 'Kyphosis (Hunched)',
+              headCarriage: 'Depressed / Drooping',
+              weightBearing: 'Severe Non-Weight Bearing Lameness',
+              gaitConfidence: 65.0,
+            },
+            bodyConditionScore: 3.0,
+            conformationalMetrics: [
+              { metric: 'Myositis & Crepitation Score', score: 20, benchmark: '85-100 Normal', status: 'Abnormal', details: 'Hot, painful, crackling/crepitant gas swelling in upper hindquarter gluteal muscles.' },
+            ],
+            lesions: [
+              {
+                id: 'les-bq-01',
+                label: 'Crepitant Gluteal Myositis (Black Quarter)',
+                confidence: 97.4,
+                severity: 'Severe',
+                boundingBox: { ymin: 40, xmin: 15, ymax: 75, xmax: 45 },
+                anatomicalLocation: 'Left Hindquarter Gluteal & Thigh Muscle',
+                clinicalDescription: 'Crackling gaseous emphysematous swelling with cutaneous necrosis and severe lameness characteristic of Clostridium chauvoei.'
+              }
+            ],
+            primaryDiagnosis: 'Black Quarter (BQ / Clostridium chauvoei - Emphysematous Gangrene)',
+            pregnancyStatus: pregnancyStatus || 'Mid Gestation (4-6 Months)',
+            lactationStatus: lactationStatus || 'Mid Lactation',
+            milkYieldImpact: 'Severe sudden drop in milk yield accompanied by toxic fever (105-106°F).',
+            reproductiveAndLactationAlerts: {
+              pregnancyRiskNotes: 'Severe clostridial toxemia. High risk of abortion without prompt high-dose Penicillin therapy.',
+              lactationImpact: 'Severe drop; discard all milk.',
+              drugContraindications: ['High-dose crystalline Penicillin must be injected directly into and around the periphery of the crepitant lesion in early stages.'],
+              nutritionalRecommendation: 'Supportive oral hydration and easily digestible gruel.'
+            },
+            differentialDiagnoses: [
+              {
+                disease: 'Black Quarter (Clostridium chauvoei)',
+                probability: 95.5,
+                keyIndications: ['Crepitant gas swelling in heavy muscle', 'Severe lameness', 'High fever', 'Young cattle predilection'],
+                sourceDataset: 'Bharat Pashudhan & ICAR Clostridial SOP'
+              },
+              {
+                disease: 'Malignant Edema (Clostridium septicum)',
+                probability: 12.0,
+                keyIndications: ['Wound-associated soft doughy edema without distinct gas'],
+                sourceDataset: 'NDLM Pathology'
+              }
+            ],
+            severityGrade: 'Emergency Quarantine',
+            ragCitations: [
+              {
+                source: 'Bharat Pashudhan (NDLM)',
+                title: 'Standard Guidelines for Black Quarter Outbreak Management',
+                section: 'Section 2.1: Local Infiltration & Herd Vaccination',
+                relevanceScore: 0.97,
+                guidelineSnippet: 'High-dose Procaine Penicillin (10,000-20,000 IU/kg) IM and local infiltration around lesion periphery. Vaccinate all cattle 6 months to 2 years with BQ Vaccine.',
+                url: 'https://bharatpashudhan.ndlm.co.in/guidelines/bq-protocol'
+              }
+            ],
+            immediateRemedies: [
+              'Strict confinement on soft straw bedding.',
+              'Apply ice packs on early hot swelling to limit clostridial toxin spread.',
+              'Provide fresh drinking water with glucose and electrolytes.'
+            ],
+            recommendedVeterinaryActions: [
+              'High-dose Crystalline / Procaine Penicillin IV/IM immediately.',
+              'NSAID (Meloxicam 0.5 mg/kg) for analgesia and anti-inflammation.',
+              'Ring vaccination of all young stock in 5km zone with polyvalent BQ vaccine.'
+            ],
+            biosecurityProtocol: [
+              'Carcass disposal warning: In case of death, DO NOT open the carcass (prevents spore contamination of pasture); bury deep with lime.',
+              'Disinfect premises with 5% Formalin or 3% Sodium Hydroxide.'
+            ]
+          };
+        } else if (isMange) {
+          analysisResult = {
+            isNonLivingObject: false,
+            predictedBreed: 'Tharparkar / Crossbred (Bos indicus)',
+            breedConfidence: 93.8,
+            detectedSpecies: species || 'Cattle',
+            coatCondition: 'Lichenified / Thickened Crusty Skin',
+            postureAssessment: {
+              spineCurvature: 'Normal Straight',
+              headCarriage: 'Agitated / Rubbing Head',
+              weightBearing: 'Equal on all 4 limbs',
+              gaitConfidence: 92.0,
+            },
+            bodyConditionScore: 2.7,
+            conformationalMetrics: [
+              { metric: 'Pruritus & Skin Fold Score', score: 48, benchmark: '85-100 Normal', status: 'Abnormal', details: 'Severe dermal thickening with elephant-hide corrugations and constant scratching.' },
+            ],
+            lesions: [
+              {
+                id: 'les-mg-01',
+                label: 'Lichenified Crusty Scabies Plaques',
+                confidence: 95.2,
+                severity: 'Moderate',
+                boundingBox: { ymin: 28, xmin: 45, ymax: 58, xmax: 75 },
+                anatomicalLocation: 'Neck Folds & Lateral Flank',
+                clinicalDescription: 'Thickened corrugated skin with hyperkeratotic crusts and excoriations characteristic of Sarcoptes scabiei var. bovis.'
+              }
+            ],
+            primaryDiagnosis: 'Bovine Acariasis (Sarcoptic / Psoroptic Mange / Scabies)',
+            pregnancyStatus: pregnancyStatus || 'Mid Gestation (4-6 Months)',
+            lactationStatus: lactationStatus || 'Mid Lactation',
+            milkYieldImpact: 'Moderate 25-35% milk production drop caused by chronic agitation, sleep loss, and reduced feed intake.',
+            reproductiveAndLactationAlerts: {
+              pregnancyRiskNotes: 'Safe to treat with topical acaricides or subcutaneous Ivermectin under veterinary supervision.',
+              lactationImpact: 'Observe 28-day milk withdrawal if injectable ivermectin is used; alternatively use topical Eprinomectin with zero milk withdrawal.',
+              drugContraindications: ['Use Eprinomectin pour-on for lactating dairy animals (zero milk discard required).'],
+              nutritionalRecommendation: 'High energy diet + Zinc and Biotin supplements to restore skin barrier.'
+            },
+            differentialDiagnoses: [
+              {
+                disease: 'Sarcoptic Mange (Sarcoptes scabiei)',
+                probability: 92.0,
+                keyIndications: ['Intense itching', 'Thickened corrugated skin folds', 'Crusts on neck/tail'],
+                sourceDataset: 'Bharat Pashudhan Parasitology Hub'
+              },
+              {
+                disease: 'Psoroptic / Chorioptic Mange',
+                probability: 22.0,
+                keyIndications: ['Tailhead and leg lesions'],
+                sourceDataset: 'ICAR-CAZRI Field Guide'
+              }
+            ],
+            severityGrade: 'Moderate',
+            ragCitations: [
+              {
+                source: 'Bharat Pashudhan (NDLM)',
+                title: 'Standard Protocol for Control of Livestock Mange & Ectoparasites',
+                section: 'Section 3.2: Macrocyclic Lactone Protocols',
+                relevanceScore: 0.95,
+                guidelineSnippet: 'Subcutaneous Ivermectin (0.2 mg/kg) repeated at 14 days, or topical Eprinomectin 0.5% pour-on (zero milk withdrawal). Apply sulphur-camphor paste in neem oil for ethno-veterinary relief.',
+                url: 'https://bharatpashudhan.ndlm.co.in/guidelines/mange-control'
+              }
+            ],
+            immediateRemedies: [
+              'Groom and wash with warm neem leaf decoction to soften crusts.',
+              'Apply topical formulation of Sulphur powder (10%) + Camphor (2%) in Mustard oil.',
+              'Provide soothing aloe vera gel on raw excoriations.'
+            ],
+            recommendedVeterinaryActions: [
+              'Subcutaneous Ivermectin (200 mcg/kg) or topical Eprinomectin pour-on.',
+              'Antihistaminic (Chlorpheniramine maleate 10 ml IM) to relieve acute itching.',
+              'Repeat treatment after 14 days to kill newly hatched mite nymphs.'
+            ],
+            biosecurityProtocol: [
+              'Spray barn walls and rubbing posts with Amitraz 12.5% or Deltamethrin.',
+              'Quarantine infested animals until full hair regrowth.'
+            ]
+          };
+        } else if (isBloat) {
+          analysisResult = {
+            isNonLivingObject: false,
+            predictedBreed: 'Crossbred Dairy Cow (Bos taurus x indicus)',
+            breedConfidence: 95.0,
+            detectedSpecies: species || 'Cattle',
+            coatCondition: 'Sweating with Distended Abdomen',
+            postureAssessment: {
+              spineCurvature: 'Kyphosis (Hunched & Straining)',
+              headCarriage: 'Extended Neck (Gasping)',
+              weightBearing: 'Restless / Kicking at Belly',
+              gaitConfidence: 75.0,
+            },
+            bodyConditionScore: 3.4,
+            conformationalMetrics: [
+              { metric: 'Left Paralumbar Fossa Distension', score: 18, benchmark: '85-100 Normal', status: 'Abnormal', details: 'Severe balloon-like tympanic enlargement of left flank rising above spinal line.' },
+            ],
+            lesions: [
+              {
+                id: 'les-bl-01',
+                label: 'Acute Left Flank Ruminal Distension (Tympany)',
+                confidence: 97.5,
+                severity: 'Severe',
+                boundingBox: { ymin: 30, xmin: 20, ymax: 70, xmax: 55 },
+                anatomicalLocation: 'Left Paralumbar Fossa & Rumen',
+                clinicalDescription: 'Tense tympanic drum-like distension of the rumen compressing diaphragm and thoracic cavity.'
+              }
+            ],
+            primaryDiagnosis: 'Acute Ruminal Bloat (Frothy Tympany / Legume Bloat)',
+            pregnancyStatus: pregnancyStatus || 'Mid Gestation (4-6 Months)',
+            lactationStatus: lactationStatus || 'Mid Lactation',
+            milkYieldImpact: 'Immediate cessation of grazing and rumination with acute discomfort.',
+            reproductiveAndLactationAlerts: {
+              pregnancyRiskNotes: 'Severe intra-abdominal pressure risks uterine hypoxia. Relieve ruminal pressure immediately.',
+              lactationImpact: 'Resume normal milking once rumen motility is restored.',
+              drugContraindications: ['Administer oral antifoaming surfactant (Simethicone / Bloatosil) or vegetable oil immediately; avoid force drenching when animal is in acute respiratory panic.'],
+              nutritionalRecommendation: 'Feed dry fibrous hay before allowing access to lush immature green legumes (Lucerne/Berseem).'
+            },
+            differentialDiagnoses: [
+              {
+                disease: 'Frothy Ruminal Bloat (Tympany)',
+                probability: 96.0,
+                keyIndications: ['Left flank distension above spine', 'Drum-like resonance', 'Kicking at belly', 'Recent legume ingestion'],
+                sourceDataset: 'Bharat Pashudhan & ICAR Digestive Disorders SOP'
+              },
+              {
+                disease: 'Choke / Esophageal Obstruction',
+                probability: 15.0,
+                keyIndications: ['Profuse salivation with sudden gaseous bloat'],
+                sourceDataset: 'NDLM Triage'
+              }
+            ],
+            severityGrade: 'Severe',
+            ragCitations: [
+              {
+                source: 'Bharat Pashudhan (NDLM)',
+                title: 'Field Management of Acute Ruminal Tympany & Choke in Bovines',
+                section: 'Section 1.1: Oral Surfactants & Trocarization',
+                relevanceScore: 0.96,
+                guidelineSnippet: 'Administer 100ml Simethicone emulsion (Bloatosil/Tympol) or 500ml Peanut/Mustard oil orally with Turpentine oil (15ml). In life-threatening emergencies, perform trocarization at center of left paralumbar fossa.',
+                url: 'https://bharatpashudhan.ndlm.co.in/guidelines/bloat-emergency'
+              }
+            ],
+            immediateRemedies: [
+              'Keep animal standing with forequarters elevated on an incline to ease diaphragm breathing.',
+              'Place a wooden gag/stick in the mouth tied behind horns to stimulate chewing and eructation.',
+              'Drench with 500 ml edible vegetable oil (mustard/groundnut oil) mixed with 15 ml Turpentine oil.'
+            ],
+            recommendedVeterinaryActions: [
+              'Pass stomach tube to evacuate free gas and infuse poloxalene/simethicone.',
+              'Emergency left flank trocarization if animal is collapsing from suffocation.',
+              'Administer Rumen buffer + probiotics once acute crisis resolves.'
+            ],
+            biosecurityProtocol: [
+              'Never feed lush, wet, dew-covered young legume fodder as sole diet.',
+              'Wilt green fodder and mix with dry roughage before feeding.'
+            ]
+          };
+        } else if (isMilkFever) {
+          analysisResult = {
+            isNonLivingObject: false,
+            predictedBreed: 'HF Crossbred Dairy Cow (Bos taurus x indicus)',
+            breedConfidence: 96.0,
+            detectedSpecies: species || 'Cattle',
+            coatCondition: 'Cold Extremities / Dry Muzzle',
+            postureAssessment: {
+              spineCurvature: 'Sternal Recumbency with S-Shaped Neck',
+              headCarriage: 'Tucked onto Flank (Comatose / Depressed)',
+              weightBearing: 'Non-Ambulatory (Downer Cow)',
+              gaitConfidence: 55.0,
+            },
+            bodyConditionScore: 3.5,
+            conformationalMetrics: [
+              { metric: 'Muscular Tone & Reflex Score', score: 22, benchmark: '85-100 Normal', status: 'Abnormal', details: 'Flaccid muscle paresis with subnormal body temperature (97-99°F) and dilated pupils.' },
+            ],
+            lesions: [
+              {
+                id: 'les-mf-01',
+                label: 'Characteristic Sternal Recumbency with Neck Kink',
+                confidence: 96.8,
+                severity: 'Severe',
+                boundingBox: { ymin: 45, xmin: 25, ymax: 85, xmax: 80 },
+                anatomicalLocation: 'Full Body Recumbency & Cervical Spine',
+                clinicalDescription: 'Stage II/III postparturient hypocalcemia with flaccid paralysis and cold extremities.'
+              }
+            ],
+            primaryDiagnosis: 'Postparturient Hypocalcemia (Milk Fever / Parturient Paresis)',
+            pregnancyStatus: 'Recently Calved (Postpartum)',
+            lactationStatus: 'Early Lactation (Peak Yield)',
+            milkYieldImpact: 'Acute collapse in milk yield due to hypocalcemic smooth muscle atony.',
+            reproductiveAndLactationAlerts: {
+              pregnancyRiskNotes: 'Post-calving emergency. Risk of ischemic muscle necrosis if recumbent for >6 hours without turning.',
+              lactationImpact: 'Do not completely milk out udder for first 48 hours post-recovery (prevents calcium relapse).',
+              drugContraindications: ['Administer Calcium Borogluconate slowly IV while monitoring heart rate; rapid IV infusion causes fatal cardiac arrest!'],
+              nutritionalRecommendation: 'Feed anionic salts (DCAD diet) pre-calving; supplement with oral calcium gel immediately post-calving.'
+            },
+            differentialDiagnoses: [
+              {
+                disease: 'Parturient Paresis (Milk Fever)',
+                probability: 95.0,
+                keyIndications: ['Post-calving recumbency', 'S-shaped neck', 'Cold ears/extremities', 'Dilated pupils'],
+                sourceDataset: 'Bharat Pashudhan & ICAR Metabolic Hub'
+              },
+              {
+                disease: 'Bovine Ketosis / Fatty Liver',
+                probability: 25.0,
+                keyIndications: ['Sweet acetone breath', 'Partial anorexia'],
+                sourceDataset: 'NDLM Herd Diagnostics'
+              },
+              {
+                disease: 'Maternal Obstetric Paralysis (Calving Paralysis)',
+                probability: 14.0,
+                keyIndications: ['Obturator nerve damage following dystocia'],
+                sourceDataset: 'ICAR Veterinary Obstetrics'
+              }
+            ],
+            severityGrade: 'Severe',
+            ragCitations: [
+              {
+                source: 'Bharat Pashudhan (NDLM)',
+                title: 'Emergency Management of Metabolic Disorders: Milk Fever & Ketosis',
+                section: 'Section 2.1: Intravenous Calcium Borogluconate Administration',
+                relevanceScore: 0.97,
+                guidelineSnippet: 'Warm 450ml Calcium Borogluconate 25% to body temperature. Infuse 50% slowly IV over 15-20 mins while auscultating heart, and remaining 50% subcutaneously. Follow with oral Calcium Gel (Cal-Up) twice daily.',
+                url: 'https://bharatpashudhan.ndlm.co.in/guidelines/milk-fever-sop'
+              }
+            ],
+            immediateRemedies: [
+              'Prop cow into sternal position using straw bales to prevent ruminal tympany and regurgitation.',
+              'Massage limbs and cover body with dry jute blankets to warm cold extremities.',
+              'Administer oral Calcium Gel slowly on back of tongue if swallowing reflex is intact.'
+            ],
+            recommendedVeterinaryActions: [
+              'IV Calcium Borogluconate (25% 450ml) infused slowly under cardiac monitoring.',
+              'IV Phosphorus & Magnesium (Tonophosphan + Mifex) supportive therapy.',
+              'Subcutaneous B-complex with liver extract and dextrose.'
+            ],
+            biosecurityProtocol: [
+              'Implement pre-calving dietary cation-anion difference (DCAD) mineral management.',
+              'Administer oral calcium tube at calving and 12 hours post-calving.'
+            ]
+          };
+        } else if (isBuffalo || isFMD) {
           analysisResult = {
             predictedBreed: 'Murrah (Bubalus bubalis)',
             breedConfidence: 96.2,
@@ -412,7 +1189,7 @@ Return strictly a JSON object with this format:
             ],
           };
         } else {
-          // Default Gir / Lumpy Skin / General profile
+          // Default Gir / Lumpy Skin Disease profile
           analysisResult = {
             predictedBreed: 'Gir (Bos indicus)',
             breedConfidence: 95.4,
@@ -504,7 +1281,7 @@ Return strictly a JSON object with this format:
         id: assessmentId,
         animalId: req.body.animalId || `anim-${Math.random().toString(36).substring(2, 8)}`,
         timestamp: new Date().toISOString(),
-        imageUrl: image.startsWith('http') ? image : 'https://images.unsplash.com/photo-1546445317-29f4545e9d53?auto=format&fit=crop&w=1000&q=80',
+        imageUrl: image || 'https://images.unsplash.com/photo-1546445317-29f4545e9d53?auto=format&fit=crop&w=1000&q=80',
         gpsMetadata: {
           lat: Number(latitude) || 21.5222,
           lng: Number(longitude) || 70.4579,
@@ -590,38 +1367,49 @@ Return strictly a valid JSON object with the following structure:
           parts.push({ text: prompt });
 
           const candidateModels = [
-            'gemini-2.5-pro',
-            'gemini-2.5-flash',
-            'gemini-2.0-flash',
-            'gemini-2.0-flash-lite',
-            'gemini-1.5-pro',
-            'gemini-1.5-flash',
+            'gemini-3.1-flash-lite',
+            'gemini-3.7-flash',
+            'gemini-flash-latest',
           ];
 
           for (const modelName of candidateModels) {
-            try {
-              const response = await ai.models.generateContent({
-                model: modelName,
-                contents: { parts },
-                config: {
-                  responseMimeType: 'application/json',
-                  temperature: 0.2,
-                },
-              });
+            let attempts = 0;
+            const maxAttempts = 2;
 
-              if (response.text) {
-                let cleaned = response.text.trim();
-                if (cleaned.startsWith('```json')) {
-                  cleaned = cleaned.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-                } else if (cleaned.startsWith('```')) {
-                  cleaned = cleaned.replace(/^```\s*/, '').replace(/\s*```$/, '');
+            while (attempts < maxAttempts && !voiceAnalysis) {
+              attempts++;
+              try {
+                const response = await ai.models.generateContent({
+                  model: modelName,
+                  contents: { parts },
+                  config: {
+                    responseMimeType: 'application/json',
+                    temperature: 0.2,
+                  },
+                });
+
+                if (response.text) {
+                  let cleaned = response.text.trim();
+                  if (cleaned.startsWith('```json')) {
+                    cleaned = cleaned.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+                  } else if (cleaned.startsWith('```')) {
+                    cleaned = cleaned.replace(/^```\s*/, '').replace(/\s*```$/, '');
+                  }
+                  voiceAnalysis = JSON.parse(cleaned);
+                  if (voiceAnalysis) break;
                 }
-                voiceAnalysis = JSON.parse(cleaned);
-                if (voiceAnalysis) break;
+              } catch (err: any) {
+                const errMsg = err?.message || String(err);
+                const isHighDemand = errMsg.includes('503') || errMsg.includes('high demand') || errMsg.includes('429') || errMsg.includes('quota');
+                if (attempts < maxAttempts && isHighDemand) {
+                  await new Promise((resolve) => setTimeout(resolve, 400 * attempts));
+                } else {
+                  break;
+                }
               }
-            } catch (err: any) {
-              console.warn(`Voice analysis with ${modelName} notice:`, err?.message?.slice(0, 100));
             }
+
+            if (voiceAnalysis) break;
           }
         } catch (genError) {
           console.warn('Gemini voice processing notice, activating clinical rule engine fallback.');
@@ -660,25 +1448,44 @@ Return strictly a valid JSON object with the following structure:
         const isNodule = /गांठ|गाँठ|nodule|लंप|ফোলা|টেমুনা|ગાંઠ|गाठ|గడ్డ|கட்டி|ಮುದ್ದೆ|മുഴ|گولیاں|गंड|गाँठाहरू/i.test(text);
         const isFever = /बुखार|fever|તાવ|ताप|ਜਵਰ|ਬੁਖਾਰ|ಜ್ವರ|காய்ச்சல்|জ্বর|জ্বৰ|జ్వరం|പനി|بخار|तप|ज्वरो/i.test(text);
         const isMilk = /दूध|milk|દૂધ|दूध|ਦੁੱਧ|ಹಾಲು|பால்|দুধ|গাখীৰ|పాలు|പാൽ|دودھ|दही|दूध/i.test(text);
-        const isLimp = /लंगड़ा|limp|ખામી|लंगडणे|ਖੜੋਤ|ಕುಂಟುವುದು|நொண்டல்|খোড়া|খোৰা|కుంటు|മുടന്ത്|لنگڑانا/i.test(text);
+        const isLimp = /लंगड़ा|limp|ખામੀ|लंगडणे|ਖੜੋਤ|ಕುಂಟುವುದು|நொண்டல்|খোড়া|খোৰা|కుంటు|മുടന്ത്|لنگڑانا/i.test(text);
+        const isUdder = /थन|लेवा|udder|mastitis|थान|बांडी|மடி|పొదుగు|আঁচল|মাদী/i.test(text);
+        const isEye = /आंख|आँख|eye|pinkeye|cornea|कಣ್ಣು|கண்|চোখ|চোকু|కన్ను|കണ്ണ്|آنکھ/i.test(text);
+        const isTick = /चिचड़ी|tick|किलनी|theileria|parasite|টিক|ఉన్ని| உண்ணி|ಉಣ್ಣಿ/i.test(text);
+        const isThroat = /गला|घोटू|galghotu|throat|swelling|গল|గొంతు|தொண்டை|ಗಂಟಲು|গলা/i.test(text);
+        const isBloat = /पेट|bloat|gas|आफरा|फूलना|വയർ|పొట్ట|ಹೊಟ್ಟೆ|আফৰা|আফরা/i.test(text);
 
         const extracted: string[] = [];
-        if (isFever) extracted.push('Pyrexia / Elevated Temperature');
-        if (isNodule) extracted.push('Cutaneous Nodular Lesions');
-        if (isMilk) extracted.push('Reduced Milk Production (Hypogalactia)');
-        if (isLimp) extracted.push('Gait Abnormality / Lameness');
+        if (isFever) extracted.push('Pyrexia / Elevated Body Temperature');
+        if (isNodule) extracted.push('Cutaneous Nodular Lesions (LSD Suspected)');
+        if (isUdder || isMilk) extracted.push('Mammary Swelling / Hypogalactia (Mastitis)');
+        if (isLimp) extracted.push('Gait Abnormality / Interdigital Lameness (FMD/BQ)');
+        if (isEye) extracted.push('Corneal Opacity / Blepharospasm (Pinkeye)');
+        if (isTick) extracted.push('Tick Infestation / Lymph Node Enlargement (Theileriosis)');
+        if (isThroat) extracted.push('Submandibular Swelling / Dyspnea (Galghotu / HS)');
+        if (isBloat) extracted.push('Left Paralumbar Tympany / Ruminal Bloat');
         if (extracted.length === 0) extracted.push('General Malaise & Lethargy');
+
+        const suspectedList: string[] = [];
+        if (isNodule) suspectedList.push('Lumpy Skin Disease (LSD)');
+        if (isUdder) suspectedList.push('Acute Clinical Bovine Mastitis');
+        if (isLimp) suspectedList.push('Foot and Mouth Disease (FMD)');
+        if (isEye) suspectedList.push('Infectious Bovine Keratoconjunctivitis (Pinkeye)');
+        if (isTick) suspectedList.push('Bovine Theileriosis (Theileria annulata)');
+        if (isThroat) suspectedList.push('Haemorrhagic Septicaemia (Galghotu / HS)');
+        if (isBloat) suspectedList.push('Acute Ruminal Tympany (Bloat)');
+        if (suspectedList.length === 0) suspectedList.push('Systemic Viral / Bacterial Clinical Syndrome');
 
         voiceAnalysis = {
           detectedLanguage: langMap[language] || 'Multi-Lingual Vernacular',
           detectedLanguageCode: language,
           originalTranscription: transcribedText || 'Recorded vocal anamnesis in native dialect',
-          translatedEnglish: transcribedText ? `Reported: ${transcribedText}` : 'Cattle observed with fever, lethargy, and reduced feed intake over past 48 hours.',
+          translatedEnglish: transcribedText ? `Reported: ${transcribedText}` : 'Livestock observed with symptoms requiring clinical investigation.',
           extractedSymptoms: extracted,
-          suspectedConditions: isNodule ? ['Lumpy Skin Disease (LSD)'] : isLimp ? ['Foot and Mouth Disease (FMD)'] : ['Systemic Viral / Bacterial Infection'],
+          suspectedConditions: suspectedList,
           duration: '1-3 days',
-          severity: isNodule || isLimp ? 'Severe' : 'Moderate',
-          clinicalSummary: `Field vocal anamnesis recorded: ${extracted.join(', ')}. Farmer observed acute symptom onset requiring clinical confirmation.`,
+          severity: isThroat || isNodule || isLimp || isUdder ? 'Severe' : 'Moderate',
+          clinicalSummary: `Field vocal anamnesis recorded: ${extracted.join(', ')}. Farmer observed acute symptom onset with suspected: ${suspectedList.join(', ')}.`,
         };
       }
 

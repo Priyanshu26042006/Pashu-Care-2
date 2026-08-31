@@ -5,21 +5,22 @@ import {
   X, 
   Sparkles, 
   MapPin, 
-  Compass, 
   Sun, 
   AlertCircle, 
   CheckCircle2, 
   Eye, 
   Layers, 
   RefreshCw,
-  Sliders,
   ChevronRight,
-  Info,
-  Maximize2,
   Heart,
   Droplet,
   Milk,
-  Baby
+  Baby,
+  Scan,
+  Maximize2,
+  Check,
+  Radio,
+  Zap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SAMPLE_CATTLE_PRESETS } from '../../data/mockLivestockData';
@@ -43,6 +44,7 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
   const [activeMode, setActiveMode] = useState<'preset' | 'live' | 'upload'>('preset');
   const [selectedPreset, setSelectedPreset] = useState(SAMPLE_CATTLE_PRESETS[0]);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [capturedLivePhoto, setCapturedLivePhoto] = useState<string | null>(null);
   const [species, setSpecies] = useState<'Cattle' | 'Buffalo' | 'Goat' | 'Sheep'>('Cattle');
   const [symptomsText, setSymptomsText] = useState('');
   const [pregnancyStatus, setPregnancyStatus] = useState<PregnancyStatus>('Mid Gestation (4-6 Months)');
@@ -50,13 +52,19 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
   const [dailyMilkYield, setDailyMilkYield] = useState<number>(12.5);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStage, setProcessingStage] = useState('');
+  const [processingProgress, setProcessingProgress] = useState(0);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [activeScanningImage, setActiveScanningImage] = useState<string | null>(null);
+  const [rejectionData, setRejectionData] = useState<{
+    title: string;
+    message: string;
+    detectedObject?: string;
+    details?: string;
+  } | null>(null);
 
   // AR Guidance State
-  const [lightingScore, setLightingScore] = useState(92);
-  const [alignmentScore, setAlignmentScore] = useState(88);
-  const [tiltAngle, setTiltAngle] = useState(1.5);
+  const [lightingScore] = useState(92);
   const [showOverlays, setShowOverlays] = useState(true);
 
   // GPS Metadata
@@ -93,7 +101,7 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
 
   // Handle WebCam start/stop
   useEffect(() => {
-    if (isOpen && activeMode === 'live') {
+    if (isOpen && activeMode === 'live' && !capturedLivePhoto) {
       startCamera();
     } else {
       stopCamera();
@@ -101,7 +109,7 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
     return () => {
       stopCamera();
     };
-  }, [isOpen, activeMode]);
+  }, [isOpen, activeMode, capturedLivePhoto]);
 
   const startCamera = async () => {
     setCameraError(null);
@@ -116,7 +124,7 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
       }
     } catch (err: any) {
       console.warn('Live camera access error:', err);
-      setCameraError('Camera access unavailable. You can use sample cattle presets or upload a photo.');
+      setCameraError('Live camera stream unavailable or permission denied. You can upload a photo or use diagnostic presets.');
       setCameraActive(false);
     }
   };
@@ -129,19 +137,35 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
     setCameraActive(false);
   };
 
+  // Helper to grab frame from video element
+  const getCanvasFrame = (): string | null => {
+    if (!videoRef.current) return null;
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = videoRef.current.videoWidth || 1280;
+      canvas.height = videoRef.current.videoHeight || 720;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+        return canvas.toDataURL('image/jpeg', 0.92);
+      }
+    } catch (e) {
+      console.warn('Failed to extract canvas frame', e);
+    }
+    return null;
+  };
+
   const captureLiveFrame = () => {
-    if (!videoRef.current) return;
-    const canvas = document.createElement('canvas');
-    canvas.width = videoRef.current.videoWidth || 800;
-    canvas.height = videoRef.current.videoHeight || 600;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-      setUploadedImage(dataUrl);
-      setActiveMode('upload');
+    const dataUrl = getCanvasFrame();
+    if (dataUrl) {
+      setCapturedLivePhoto(dataUrl);
       stopCamera();
     }
+  };
+
+  const handleRetakeLivePhoto = () => {
+    setCapturedLivePhoto(null);
+    startCamera();
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -172,29 +196,48 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
   };
 
   const handleExecuteScan = async () => {
-    setIsProcessing(true);
-    setProcessingStage('1. Calibrating camera frame & edge biometric alignment...');
-
     let targetImage = selectedPreset.imageUrl;
     let presetHint = selectedPreset.breed;
 
-    if (activeMode === 'upload' && uploadedImage) {
+    if (activeMode === 'live') {
+      if (capturedLivePhoto) {
+        targetImage = capturedLivePhoto;
+        presetHint = `${species} camera specimen`;
+      } else {
+        // Auto-snap current live camera frame if clicked directly
+        const snapped = getCanvasFrame();
+        if (snapped) {
+          targetImage = snapped;
+          setCapturedLivePhoto(snapped);
+          stopCamera();
+        }
+        presetHint = `${species} live camera specimen`;
+      }
+    } else if (activeMode === 'upload' && uploadedImage) {
       targetImage = uploadedImage;
-      presetHint = `${species} custom specimen`;
+      presetHint = `${species} custom upload`;
     }
 
+    setActiveScanningImage(targetImage);
+    setIsProcessing(true);
+    setProcessingProgress(15);
+    setProcessingStage('1. Calibrating edge biometric alignment on clicked specimen...');
+
     try {
-      setTimeout(() => {
-        setProcessingStage('2. Multi-Modal Vision: Analyzing breed traits, spine curvature & skin nodules...');
-      }, 700);
+      const t1 = setTimeout(() => {
+        setProcessingProgress(42);
+        setProcessingStage('2. Multi-Modal Vision: Analyzing spine curvature, coat condition & lesion nodules...');
+      }, 750);
 
-      setTimeout(() => {
-        setProcessingStage('3. Evaluating Pregnancy Risk, Lactation Phase & Contraindicated Drug Protocols...');
-      }, 1500);
+      const t2 = setTimeout(() => {
+        setProcessingProgress(68);
+        setProcessingStage('3. Evaluating Gestational Stage, Lactation Phase & Contraindicated Drug Protocols...');
+      }, 1550);
 
-      setTimeout(() => {
-        setProcessingStage('4. Dense Vector Retrieval: Querying Bharat Pashudhan (NDLM) & IEEE Dataport...');
-      }, 2200);
+      const t3 = setTimeout(() => {
+        setProcessingProgress(90);
+        setProcessingStage('4. Bharat Pashudhan (NDLM) & IEEE Dataport knowledge vector retrieval...');
+      }, 2350);
 
       const assessment = await runLivestockAssessment({
         image: targetImage,
@@ -212,25 +255,49 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
       });
 
       setTimeout(() => {
-        setIsProcessing(false);
-        onAssessmentComplete(assessment);
-        onClose();
-      }, 2900);
-    } catch (err) {
-      console.error(err);
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+        setProcessingProgress(100);
+        setProcessingStage('5. Synthesis complete. Launching clinical diagnostic report...');
+        
+        setTimeout(() => {
+          setIsProcessing(false);
+          onAssessmentComplete(assessment);
+          onClose();
+        }, 600);
+      }, 2400);
+    } catch (err: any) {
+      console.warn('Livestock scanner evaluation note:', err);
       setIsProcessing(false);
+      
+      // Trigger user requested rejection message for non-living objects
+      setRejectionData({
+        title: 'NON LIVING OBJECT DETECTED',
+        message: 'PLEASE RETAKE PROPERLY',
+        detectedObject: err?.detectedObject || 'Inanimate / Non-livestock item',
+        details: err?.rejectionMessage || 'The scanned picture does not contain a living livestock animal (cattle, buffalo, goat, or sheep). Please ensure the animal is centered within the frame under good lighting.'
+      });
     }
   };
 
   if (!isOpen) return null;
 
+  // Active current visual preview source
+  const currentPreviewImage = 
+    activeMode === 'live'
+      ? capturedLivePhoto
+      : activeMode === 'upload'
+      ? uploadedImage
+      : selectedPreset.imageUrl;
+
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 md:p-6">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 md:p-6">
       <motion.div 
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="bg-white border border-slate-200 rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden text-slate-800"
+        className="bg-white border border-slate-200 rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden text-slate-800 relative"
       >
         
         {/* Modal Header */}
@@ -244,14 +311,14 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
                 <span>Guided Livestock Scanner</span>
                 <span className="text-[10px] uppercase font-bold tracking-wider bg-purple-100 text-purple-800 px-2 py-0.5 rounded-md border border-purple-200 flex items-center gap-1">
                   <Sparkles className="w-3 h-3 text-purple-600" />
-                  Gemini Pro AI
+                  Gemini Multi-Modal Vision
                 </span>
                 <span className="text-[10px] uppercase font-bold tracking-wider bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-md border border-emerald-200">
                   AR Alignment Active
                 </span>
               </h2>
               <p className="text-xs text-slate-500 font-medium">
-                Multi-modal AI vision with instant conformational & lesion screening
+                Real-time livestock capture, conformation analysis & lesion detection
               </p>
             </div>
           </div>
@@ -271,7 +338,10 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
           {/* Mode Switcher Tabs */}
           <div className="grid grid-cols-3 gap-2 p-1.5 bg-slate-100 rounded-xl border border-slate-200 text-xs font-semibold">
             <button
-              onClick={() => setActiveMode('preset')}
+              onClick={() => {
+                setActiveMode('preset');
+                setCapturedLivePhoto(null);
+              }}
               className={`py-2 px-3 rounded-lg flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
                 activeMode === 'preset'
                   ? 'bg-white text-emerald-800 font-bold shadow-xs border border-slate-200/80'
@@ -283,7 +353,9 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
             </button>
 
             <button
-              onClick={() => setActiveMode('live')}
+              onClick={() => {
+                setActiveMode('live');
+              }}
               className={`py-2 px-3 rounded-lg flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
                 activeMode === 'live'
                   ? 'bg-white text-emerald-800 font-bold shadow-xs border border-slate-200/80'
@@ -295,7 +367,10 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
             </button>
 
             <button
-              onClick={() => setActiveMode('upload')}
+              onClick={() => {
+                setActiveMode('upload');
+                setCapturedLivePhoto(null);
+              }}
               className={`py-2 px-3 rounded-lg flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
                 activeMode === 'upload'
                   ? 'bg-white text-emerald-800 font-bold shadow-xs border border-slate-200/80'
@@ -319,16 +394,42 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
               />
             )}
 
-            {/* 2. Live Camera Stream */}
+            {/* 2. Live Camera Stream or Captured Clicked Photo */}
             {activeMode === 'live' && (
               <>
-                {cameraError ? (
+                {capturedLivePhoto ? (
+                  // Display the clicked photo in the scanner viewport
+                  <div className="relative w-full h-full">
+                    <img
+                      src={capturedLivePhoto}
+                      alt="Captured livestock specimen"
+                      className="w-full h-full object-cover"
+                    />
+
+                    {/* Captured Specimen Confirmation Banner */}
+                    <div className="absolute top-4 left-4 z-20 flex items-center space-x-2 bg-emerald-950/90 border border-emerald-500/50 backdrop-blur-md px-3.5 py-1.5 rounded-xl text-xs text-emerald-200 font-semibold shadow-lg">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      <span>Specimen Photo Captured</span>
+                    </div>
+
+                    {/* Retake Button Floating Control */}
+                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 flex items-center gap-3">
+                      <button
+                        onClick={handleRetakeLivePhoto}
+                        className="flex items-center space-x-2 bg-slate-900/90 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold border border-slate-700 shadow-xl transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Retake Photo</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : cameraError ? (
                   <div className="text-center p-6 space-y-3">
                     <AlertCircle className="w-10 h-10 text-amber-400 mx-auto" />
                     <p className="text-xs sm:text-sm text-slate-300 max-w-sm">{cameraError}</p>
                     <button
                       onClick={() => setActiveMode('preset')}
-                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-xs"
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer"
                     >
                       Use High-Resolution Diagnostic Presets
                     </button>
@@ -342,13 +443,18 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
                       muted
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20">
+                    {/* Live Shutter Capture Button */}
+                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 flex flex-col items-center gap-1.5">
                       <button
                         onClick={captureLiveFrame}
-                        className="w-14 h-14 rounded-full bg-emerald-500 border-4 border-white flex items-center justify-center text-slate-950 shadow-2xl hover:scale-105 active:scale-95 transition-transform cursor-pointer"
+                        className="w-14 h-14 rounded-full bg-emerald-500 border-4 border-white flex items-center justify-center text-slate-950 shadow-2xl hover:scale-110 active:scale-95 transition-transform cursor-pointer"
+                        title="Click to capture photo"
                       >
                         <Camera className="w-7 h-7" />
                       </button>
+                      <span className="text-[10px] font-bold text-white bg-slate-950/70 px-2 py-0.5 rounded-md backdrop-blur-xs">
+                        Click Shutter to Snap
+                      </span>
                     </div>
                   </>
                 )}
@@ -361,9 +467,14 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
                 {uploadedImage ? (
                   <div className="relative w-full h-full">
                     <img src={uploadedImage} alt="Uploaded livestock" className="w-full h-full object-cover" />
+                    <div className="absolute top-4 left-4 z-20 flex items-center space-x-2 bg-slate-950/80 border border-slate-700 backdrop-blur-xs px-3 py-1 rounded-xl text-xs text-emerald-300 font-medium">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Custom Photo Loaded</span>
+                    </div>
                     <button
                       onClick={() => setUploadedImage(null)}
-                      className="absolute top-3 right-3 p-1.5 rounded-lg bg-slate-900/80 text-slate-300 hover:text-white"
+                      className="absolute top-3 right-3 p-2 rounded-xl bg-slate-900/80 text-slate-300 hover:text-white border border-slate-700 cursor-pointer"
+                      title="Replace photo"
                     >
                       <RefreshCw className="w-4 h-4" />
                     </button>
@@ -449,7 +560,11 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
                 {/* Bottom Guidance Instruction Pill */}
                 <div className="self-center bg-slate-950/85 backdrop-blur-xs px-4 py-1.5 rounded-full border border-emerald-500/40 text-xs font-semibold text-emerald-200 flex items-center space-x-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>Align full lateral flank & head inside the frame (Distance: ~2.0m)</span>
+                  <span>
+                    {activeMode === 'live' && capturedLivePhoto
+                      ? 'Photo Ready! Proceed to generate diagnosis or retake.'
+                      : 'Align lateral flank & head inside the frame (Distance: ~2.0m)'}
+                  </span>
                 </div>
 
               </div>
@@ -468,22 +583,26 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
 
           {/* Preset Selector Carousel (If in Preset Mode) */}
           {activeMode === 'preset' && (
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between">
-                <span>Select Veterinary Clinical Preset:</span>
-                <span className="text-emerald-700 lowercase font-medium">{SAMPLE_CATTLE_PRESETS.length} curated case studies</span>
-              </label>
+            <div className="space-y-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-1">
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Select Veterinary Clinical Preset:
+                </label>
+                <span className="text-xs text-emerald-700 font-medium bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                  {SAMPLE_CATTLE_PRESETS.length} conditions available
+                </span>
+              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-[260px] overflow-y-auto pr-1">
                 {SAMPLE_CATTLE_PRESETS.map((preset) => {
                   const isSelected = selectedPreset.id === preset.id;
                   return (
                     <div
                       key={preset.id}
                       onClick={() => handlePresetSelect(preset)}
-                      className={`cursor-pointer p-3 rounded-xl border transition-all flex items-center space-x-3 ${
+                      className={`cursor-pointer p-2.5 rounded-xl border transition-all flex items-center space-x-2.5 ${
                         isSelected
-                          ? 'bg-emerald-50/80 border-emerald-500 shadow-xs'
+                          ? 'bg-emerald-50/90 border-emerald-500 shadow-xs ring-1 ring-emerald-500/30'
                           : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                       }`}
                     >
@@ -493,23 +612,26 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
                         className="w-12 h-12 rounded-lg object-cover border border-slate-200 shrink-0"
                       />
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-1">
                           <h4 className="text-xs font-bold text-slate-900 truncate">{preset.breed}</h4>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold ${
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-bold shrink-0 ${
                             preset.defaultDiagnosis.severity === 'Healthy'
                               ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              : preset.defaultDiagnosis.severity === 'Moderate'
+                              : preset.defaultDiagnosis.severity === 'Moderate' || preset.defaultDiagnosis.severity === 'Mild'
                               ? 'bg-amber-50 text-amber-700 border border-amber-200'
                               : 'bg-rose-50 text-rose-700 border border-rose-200'
                           }`}>
                             {preset.defaultDiagnosis.severity}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-500 truncate">{preset.defaultDiagnosis.disease}</p>
-                        <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5 font-medium">
-                          <MapPin className="w-2.5 h-2.5 text-rose-500" />
-                          {preset.location.district}, {preset.location.state}
-                        </p>
+                        <p className="text-[10px] font-semibold text-slate-600 truncate">{preset.defaultDiagnosis.disease}</p>
+                        <div className="flex items-center justify-between text-[9px] text-slate-400 mt-0.5">
+                          <span className="truncate">{preset.category || 'Clinical Specimen'}</span>
+                          <span className="flex items-center gap-0.5 text-slate-500 shrink-0">
+                            <MapPin className="w-2.5 h-2.5 text-rose-500" />
+                            {preset.location.district}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   );
@@ -625,28 +747,219 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
 
         </div>
 
-        {/* Processing State Overlay */}
+        {/* Dynamic Full-Screen AI Diagnostic Scanning Viewport (Active during Processing) */}
         <AnimatePresence>
-          {isProcessing && (
+          {isProcessing && activeScanningImage && (
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 z-50 bg-white/95 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center space-y-4"
+              className="absolute inset-0 z-50 bg-slate-950 flex flex-col overflow-hidden text-white"
             >
-              <div className="relative w-20 h-20">
-                <div className="w-20 h-20 rounded-full border-4 border-emerald-200 border-t-emerald-600 animate-spin"></div>
-                <Sparkles className="w-8 h-8 text-emerald-600 absolute inset-0 m-auto animate-pulse" />
+              {/* Scanning Header Bar */}
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-emerald-900/60 bg-slate-950/90 z-20">
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-400/50 flex items-center justify-center text-emerald-400">
+                    <Scan className="w-4 h-4 animate-spin" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      <span>Multimodal Vision Diagnostic Scan</span>
+                      <span className="text-[10px] font-mono uppercase bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/30 animate-pulse">
+                        LIVE AI INFERENCE
+                      </span>
+                    </h3>
+                    <p className="text-[11px] text-slate-400 font-mono">
+                      Target: <strong className="text-emerald-300">{species}</strong> • District: {gpsData.district}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <span className="text-xs font-mono font-bold text-emerald-400">
+                    {processingProgress}%
+                  </span>
+                  <p className="text-[10px] text-slate-500 font-mono">Telemetry Active</p>
+                </div>
               </div>
 
-              <div className="space-y-1 max-w-md">
-                <h3 className="text-lg font-bold text-slate-900">Running Multi-Modal Diagnostic AI</h3>
-                <p className="text-xs text-emerald-700 font-mono transition-all font-semibold">{processingStage}</p>
-              </div>
+              {/* Central Viewport Displaying the Clicked Specimen Photo with Laser Scanner Beam & AR Reticles */}
+              <div className="relative flex-1 bg-black flex items-center justify-center overflow-hidden">
+                
+                {/* The EXACT Clicked / Uploaded Photo */}
+                <img
+                  src={activeScanningImage}
+                  alt="Scanned specimen"
+                  className="w-full h-full object-contain filter contrast-[1.05] brightness-95"
+                />
 
-              <div className="w-64 h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                <div className="h-full bg-emerald-600 animate-pulse w-full"></div>
+                {/* High-Tech Holographic Laser Scan Sweep (Moving Top-to-Bottom) */}
+                <motion.div
+                  initial={{ top: '0%' }}
+                  animate={{ top: ['0%', '100%', '0%'] }}
+                  transition={{ duration: 2.2, repeat: Infinity, ease: 'linear' }}
+                  className="absolute left-0 right-0 h-1.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_20px_6px_rgba(52,211,153,0.7)] pointer-events-none z-10"
+                >
+                  <div className="w-full h-24 bg-gradient-to-b from-emerald-500/15 to-transparent transform -translate-y-full pointer-events-none"></div>
+                </motion.div>
+
+                {/* Dynamic Biometric Bounding Boxes appearing on the clicked photo */}
+                <div className="absolute inset-0 pointer-events-none p-6 flex flex-col justify-between z-10">
+                  
+                  {/* Top-left Telemetry Box */}
+                  <div className="self-start bg-slate-950/80 border border-emerald-500/40 backdrop-blur-md rounded-xl p-3 space-y-1 text-[11px] font-mono text-emerald-300 shadow-xl">
+                    <div className="flex items-center gap-2">
+                      <Zap className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Resolution: High-Res Specimen</span>
+                    </div>
+                    <div className="text-slate-400 text-[10px]">
+                      BCS Target: 1.0 - 5.0 Scale
+                    </div>
+                    <div className="text-cyan-300 text-[10px]">
+                      Lactation Phase: {lactationStatus.split(' ')[0]}
+                    </div>
+                  </div>
+
+                  {/* Anatomical Feature Scanning Reticles (Center HUD) */}
+                  <div className="relative w-full h-48 sm:h-64 my-auto flex items-center justify-center">
+                    
+                    {/* Spine Curvature Tracker */}
+                    <div className="absolute top-[20%] left-[25%] right-[25%] border border-emerald-400/60 rounded-lg p-1 bg-emerald-500/10 flex items-center justify-between text-[9px] font-mono text-emerald-300">
+                      <span>[SPINE_ALIGNMENT]</span>
+                      <span className="text-emerald-400 animate-pulse">DETECTING KYPHOSIS</span>
+                    </div>
+
+                    {/* Skin Nodule / Lesion Detector Box */}
+                    <motion.div 
+                      animate={{ scale: [1, 1.05, 1], opacity: [0.7, 1, 0.7] }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                      className="absolute top-[40%] right-[30%] w-24 h-24 border-2 border-dashed border-rose-400/80 rounded-xl bg-rose-500/15 flex flex-col justify-between p-1.5"
+                    >
+                      <span className="text-[8px] font-mono font-bold text-rose-300 uppercase">LESION SCAN</span>
+                      <span className="text-[8px] font-mono text-amber-300 self-end">Capripox/FMD</span>
+                    </motion.div>
+
+                    {/* Cranial Muzzle Sensor */}
+                    <div className="absolute left-[15%] top-[30%] w-16 h-16 rounded-full border-2 border-cyan-400/70 flex items-center justify-center text-[8px] font-mono text-cyan-300">
+                      MUZZLE
+                    </div>
+
+                  </div>
+
+                  {/* Bottom Active Stage Banner */}
+                  <div className="self-center w-full max-w-xl bg-slate-950/90 border border-emerald-500/50 backdrop-blur-md rounded-2xl p-3.5 space-y-2 shadow-2xl">
+                    <div className="flex items-center justify-between text-xs font-mono">
+                      <span className="text-emerald-300 font-bold flex items-center gap-2">
+                        <Radio className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                        AI Pipeline In Progress...
+                      </span>
+                      <span className="text-slate-400 text-[11px]">{processingProgress}%</span>
+                    </div>
+
+                    <p className="text-xs text-white font-medium truncate">
+                      {processingStage}
+                    </p>
+
+                    {/* Progress Track */}
+                    <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                      <motion.div 
+                        className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400"
+                        style={{ width: `${processingProgress}%` }}
+                        transition={{ ease: 'easeInOut', duration: 0.3 }}
+                      />
+                    </div>
+                  </div>
+
+                </div>
+
               </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Non-Living Object Rejection Alert Dialog */}
+        <AnimatePresence>
+          {rejectionData && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6"
+            >
+              <motion.div
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.9, y: 20 }}
+                className="bg-white border-2 border-rose-500 rounded-3xl p-6 sm:p-8 max-w-lg w-full text-center space-y-5 shadow-2xl relative overflow-hidden"
+              >
+                {/* Warning accent top bar */}
+                <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-rose-500 via-red-600 to-rose-500" />
+
+                <div className="w-16 h-16 rounded-3xl bg-rose-100 border border-rose-200 text-rose-600 flex items-center justify-center mx-auto shadow-inner">
+                  <AlertCircle className="w-9 h-9 animate-bounce" />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="inline-block px-3 py-1 rounded-full bg-rose-100 text-rose-800 font-mono text-[11px] font-bold tracking-wide uppercase border border-rose-200">
+                    Live Biometric Rejection
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-black text-rose-600 uppercase tracking-tight">
+                    {rejectionData.title}
+                  </h3>
+                  <h4 className="text-sm sm:text-base font-bold text-slate-800 uppercase tracking-wide">
+                    {rejectionData.message}
+                  </h4>
+                  <p className="text-xs text-slate-600 max-w-md mx-auto pt-1 leading-relaxed">
+                    {rejectionData.details}
+                  </p>
+                  {rejectionData.detectedObject && (
+                    <div className="mt-2 p-2 rounded-xl bg-slate-100 text-slate-700 font-mono text-xs inline-block">
+                      Detected: <span className="font-bold text-slate-900">{rejectionData.detectedObject}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Retake & Recovery Action Buttons */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
+                  <button
+                    onClick={() => {
+                      setRejectionData(null);
+                      setActiveMode('live');
+                      setCapturedLivePhoto(null);
+                      startCamera();
+                    }}
+                    className="w-full py-3 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold flex items-center justify-center space-x-2 shadow-md transition-all cursor-pointer"
+                  >
+                    <Camera className="w-4 h-4" />
+                    <span>Retake with Camera</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setRejectionData(null);
+                      setActiveMode('upload');
+                      setUploadedImage(null);
+                      if (fileInputRef.current) {
+                        fileInputRef.current.click();
+                      }
+                    }}
+                    className="w-full py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-bold flex items-center justify-center space-x-2 transition-all cursor-pointer"
+                  >
+                    <Upload className="w-4 h-4" />
+                    <span>Upload New Photo</span>
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setRejectionData(null);
+                    setActiveMode('preset');
+                  }}
+                  className="text-xs font-semibold text-slate-500 hover:text-slate-800 underline underline-offset-4 cursor-pointer"
+                >
+                  Or switch to Verified Diagnostic Presets
+                </button>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -667,7 +980,11 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
             className="flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-6 py-2.5 rounded-xl text-xs sm:text-sm shadow-xs transition-all transform active:scale-95 cursor-pointer"
           >
             <Sparkles className="w-4 h-4 stroke-[2.5]" />
-            <span>Generate Diagnostic Assessment</span>
+            <span>
+              {activeMode === 'live' && capturedLivePhoto
+                ? 'Scan Captured Specimen'
+                : 'Generate Diagnostic Assessment'}
+            </span>
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>

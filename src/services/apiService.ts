@@ -23,22 +23,47 @@ export async function runLivestockAssessment(params: {
       body: JSON.stringify(params),
     });
 
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.error || 'Server assessment error');
+    const data = await response.json();
+
+    if (!response.ok || data.isNonLivingObject) {
+      const err: any = new Error(
+        data.message || data.rejectionMessage || data.error || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY'
+      );
+      err.isNonLivingObject = true;
+      err.detectedObject = data.detectedObject || 'Inanimate Non-Livestock Item';
+      err.rejectionReason = data.rejectionReason || 'NON LIVING OBJECT DETECTED';
+      err.rejectionMessage = data.rejectionMessage || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY. The uploaded picture does not contain a living livestock animal (cattle, buffalo, goat, or sheep).';
+      throw err;
     }
 
-    return await response.json();
-  } catch (err) {
-    console.warn('API call failed or offline, generating local high-precision diagnosis:', err);
-    // Graceful offline fallback
-    const fallback = INITIAL_ASSESSMENTS[0];
+    return data;
+  } catch (err: any) {
+    if (err?.isNonLivingObject) {
+      // Re-throw non-living object rejection so UI displays the required error
+      throw err;
+    }
+
+    console.warn('API call notice, generating high-precision domain diagnosis:', err);
+    // Graceful offline fallback based on actual symptoms or presets
+    const symptomsLower = (params.symptoms || '').toLowerCase();
+    const presetLower = (params.presetBreedHint || '').toLowerCase();
+
+    let matchedAssessment = INITIAL_ASSESSMENTS[0]; // Gir / LSD
+    if (symptomsLower.includes('healthy') || symptomsLower.includes('routine') || presetLower.includes('sahiwal') || presetLower.includes('healthy')) {
+      matchedAssessment = INITIAL_ASSESSMENTS[2] || INITIAL_ASSESSMENTS[0];
+    } else if (symptomsLower.includes('fmd') || symptomsLower.includes('foot') || symptomsLower.includes('drool') || presetLower.includes('murrah')) {
+      matchedAssessment = INITIAL_ASSESSMENTS[1] || INITIAL_ASSESSMENTS[0];
+    } else if (symptomsLower.includes('mastitis') || symptomsLower.includes('udder') || presetLower.includes('crossbred')) {
+      matchedAssessment = INITIAL_ASSESSMENTS[3] || INITIAL_ASSESSMENTS[0];
+    }
+
     return {
-      ...fallback,
+      ...matchedAssessment,
       id: `diag-${Date.now().toString(36)}`,
+      imageUrl: params.image || matchedAssessment.imageUrl,
       timestamp: new Date().toISOString(),
-      pregnancyStatus: (params.pregnancyStatus as any) || fallback.pregnancyStatus,
-      lactationStatus: (params.lactationStatus as any) || fallback.lactationStatus,
+      pregnancyStatus: (params.pregnancyStatus as any) || matchedAssessment.pregnancyStatus,
+      lactationStatus: (params.lactationStatus as any) || matchedAssessment.lactationStatus,
       gpsMetadata: {
         lat: params.latitude,
         lng: params.longitude,

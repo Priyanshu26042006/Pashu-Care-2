@@ -1,0 +1,43 @@
+{
+  "name": "Gausehat - Livestock Diagnostics & Management",
+  "short_name": "Gausehat",
+  "description": "Multi-modal AI livestock health platform with camera guided capture, Gemini vision analysis, RAG diagnostics, conformational posture scoring, and veterinary officer workbench.",
+  "start_url": "/",
+  "id": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F8F9FA",
+  "theme_color": "#059669",
+  "orientation": "portrait",
+  "categories": ["medical", "productivity", "utilities", "agriculture"],
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Scan Livestock",
+      "short_name": "Scan",
+      "description": "Open AR Guided Livestock Camera Scanner",
+      "url": "/?action=scan",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Veterinary Workbench",
+      "short_name": "Officer",
+      "description": "Open Outbreak GIS & Officer Workbench",
+      "url": "/?tab=officer",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

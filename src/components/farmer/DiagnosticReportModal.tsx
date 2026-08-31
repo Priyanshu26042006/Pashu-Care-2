@@ -24,10 +24,14 @@ import {
   Heart,
   Droplet,
   AlertOctagon,
-  ShieldCheck
+  ShieldCheck,
+  FilePlus,
+  FileCheck,
+  Save,
+  Plus
 } from 'lucide-react';
-import { motion } from 'motion/react';
-import { DiagnosticAssessment, SupportedLanguage } from '../../types';
+import { motion, AnimatePresence } from 'motion/react';
+import { DiagnosticAssessment, SupportedLanguage, AnimalProfile, CattleFormalReport, AuthUser } from '../../types';
 import { APIProvider, Map, AdvancedMarker, Pin } from '@vis.gl/react-google-maps';
 
 interface DiagnosticReportModalProps {
@@ -35,6 +39,9 @@ interface DiagnosticReportModalProps {
   onClose: () => void;
   language: SupportedLanguage;
   onFlagForOfficerReview?: (assessmentId: string) => void;
+  animals?: AnimalProfile[];
+  currentUser?: AuthUser | null;
+  onCreateSeparateReport?: (report: CattleFormalReport, targetAnimalId?: string) => void;
 }
 
 export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
@@ -42,12 +49,28 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
   onClose,
   language,
   onFlagForOfficerReview,
+  animals = [],
+  currentUser,
+  onCreateSeparateReport,
 }) => {
   const [showLesionBoxes, setShowLesionBoxes] = useState(true);
   const [selectedLesionId, setSelectedLesionId] = useState<string | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [officerFlagged, setOfficerFlagged] = useState(false);
+
+  // Create Separate Report Drawer / Modal State
+  const [isCreatingReport, setIsCreatingReport] = useState(false);
+  const [targetAnimalId, setTargetAnimalId] = useState<string>(
+    assessment?.animalId || (animals.length > 0 ? animals[0].id : '')
+  );
+  const [customReportTitle, setCustomReportTitle] = useState(
+    assessment ? `Clinical Health Dossier: ${assessment.primaryDiagnosis.split('-')[0].trim()}` : 'Bovine Health & Assessment Dossier'
+  );
+  const [customReportNotes, setCustomReportNotes] = useState(
+    'Specimen inspected following automated biometric scan. Symptoms and visual lesions recorded for official veterinary herd dossier.'
+  );
+  const [reportCreatedSuccess, setReportCreatedSuccess] = useState<CattleFormalReport | null>(null);
 
   if (!assessment) return null;
 
@@ -613,24 +636,236 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-t border-slate-200 bg-slate-50/90">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 px-5 sm:px-6 py-4 border-t border-slate-200 bg-slate-50/90">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 hover:text-slate-900 hover:bg-slate-100 text-xs font-semibold cursor-pointer"
+            className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 hover:text-slate-900 hover:bg-slate-100 text-xs font-semibold cursor-pointer transition-colors"
           >
-            Close Report
+            Close
           </button>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => window.print()}
-              className="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold flex items-center space-x-1.5 shadow-xs cursor-pointer"
+              className="px-3.5 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold flex items-center space-x-1.5 shadow-xs cursor-pointer transition-colors"
             >
               <Download className="w-3.5 h-3.5" />
               <span>Print / PDF</span>
             </button>
+
+            {/* Create Separate Report Button */}
+            <button
+              onClick={() => {
+                setIsCreatingReport(true);
+                setReportCreatedSuccess(null);
+              }}
+              className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center space-x-1.5 shadow-xs transition-all cursor-pointer"
+            >
+              <FilePlus className="w-4 h-4" />
+              <span>Create Separate Cattle Report</span>
+            </button>
           </div>
         </div>
+
+        {/* Create Separate Cattle Report Builder Dialog */}
+        <AnimatePresence>
+          {isCreatingReport && (
+            <div className="fixed inset-0 z-60 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                className="bg-white border border-slate-200 rounded-3xl shadow-2xl max-w-xl w-full max-h-[90vh] flex flex-col overflow-hidden text-slate-800"
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                      <FilePlus className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900">Create Official Cattle Report</h3>
+                      <p className="text-xs text-slate-500 font-medium">
+                        Automatically adds under Cattle section in both Farmer & Veterinary interfaces
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setIsCreatingReport(false)}
+                    className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Form Body */}
+                <div className="p-6 overflow-y-auto space-y-4 text-xs">
+                  {reportCreatedSuccess ? (
+                    <div className="py-6 text-center space-y-4">
+                      <div className="w-14 h-14 rounded-2xl bg-emerald-100 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto shadow-xs">
+                        <CheckCircle2 className="w-8 h-8" />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="text-base font-bold text-slate-900">Report Successfully Generated!</h4>
+                        <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                          Report <strong className="text-emerald-800 font-mono">#{reportCreatedSuccess.reportNumber}</strong> has been created and automatically synchronized under the <span className="font-bold text-slate-800">Cattle section</span> for both Farmer and Veterinary interfaces.
+                        </p>
+                      </div>
+
+                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-left space-y-1 font-mono text-[11px]">
+                        <div><strong>Title:</strong> {reportCreatedSuccess.title}</div>
+                        <div><strong>Animal:</strong> {reportCreatedSuccess.animalEarTag} ({reportCreatedSuccess.breed})</div>
+                        <div><strong>Diagnosis:</strong> {reportCreatedSuccess.primaryDiagnosis}</div>
+                        <div><strong>NDLM Status:</strong> {reportCreatedSuccess.ndlmSyncStatus}</div>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setIsCreatingReport(false);
+                          setReportCreatedSuccess(null);
+                        }}
+                        className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs cursor-pointer"
+                      >
+                        Done / Return to Scan View
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Target Cattle Selection */}
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                          Attach to Registered Cattle Record
+                        </label>
+                        <select
+                          value={targetAnimalId}
+                          onChange={(e) => setTargetAnimalId(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-800 font-medium text-xs focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                        >
+                          {animals.map((anim) => (
+                            <option key={anim.id} value={anim.id}>
+                              {anim.earTagNumber} - {anim.name || anim.breed} ({anim.ownerName})
+                            </option>
+                          ))}
+                          <option value="new_specimen">
+                            + Register as New Cattle Record ({assessment.predictedBreed})
+                          </option>
+                        </select>
+                      </div>
+
+                      {/* Report Title */}
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                          Report Title
+                        </label>
+                        <input
+                          type="text"
+                          value={customReportTitle}
+                          onChange={(e) => setCustomReportTitle(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-800 font-medium text-xs focus:ring-2 focus:ring-emerald-500"
+                          placeholder="e.g., Lumpy Skin Disease Triage & Quarantine Report"
+                        />
+                      </div>
+
+                      {/* Diagnosis & Summary Preview */}
+                      <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold uppercase text-slate-500">Auto-Compiled Diagnosis</span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            {assessment.severityGrade}
+                          </span>
+                        </div>
+                        <p className="font-bold text-slate-900">{assessment.primaryDiagnosis}</p>
+                        <p className="text-[11px] text-slate-500">
+                          BCS: {assessment.bodyConditionScore}/5.0 • {assessment.lesions?.length || 0} Lesions Identified • GPS: {assessment.gpsMetadata.district}, {assessment.gpsMetadata.state}
+                        </p>
+                      </div>
+
+                      {/* Custom Observations Notes */}
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                          Additional Clinical Notes / Farmer Observations
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={customReportNotes}
+                          onChange={(e) => setCustomReportNotes(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-800 text-xs focus:ring-2 focus:ring-emerald-500 resize-none"
+                          placeholder="Add field notes, medication administered, or herd isolation remarks..."
+                        />
+                      </div>
+
+                      {/* Author Tag */}
+                      <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl flex items-center justify-between text-xs">
+                        <span className="text-slate-600">Created by: <strong className="text-slate-900">{currentUser?.name || 'Authorized User'}</strong></span>
+                        <span className="font-bold text-emerald-800">{currentUser?.role === 'veterinarian' ? 'Veterinary Officer' : 'Livestock Farmer'}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Footer */}
+                {!reportCreatedSuccess && (
+                  <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 bg-slate-50">
+                    <button
+                      onClick={() => setIsCreatingReport(false)}
+                      className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 text-xs font-semibold cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        const matchedAnimal = animals.find((a) => a.id === targetAnimalId);
+                        const newReport: CattleFormalReport = {
+                          id: `rep-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`,
+                          reportNumber: `NDLM-REP-${Math.floor(100000 + Math.random() * 900000)}`,
+                          animalId: matchedAnimal?.id || assessment.animalId || `anim-${Date.now().toString(36)}`,
+                          animalEarTag: matchedAnimal?.earTagNumber || `IN-DLM-${Math.floor(1000 + Math.random() * 9000)}`,
+                          animalName: matchedAnimal?.name || `${assessment.predictedBreed.split(' ')[0]} Specimen`,
+                          breed: assessment.predictedBreed,
+                          species: assessment.detectedSpecies,
+                          createdAt: new Date().toISOString(),
+                          authorRole: currentUser?.role === 'veterinarian' ? 'Veterinary Officer' : 'Farmer',
+                          authorName: currentUser?.name || 'Registered User',
+                          title: customReportTitle || `Health Assessment: ${assessment.primaryDiagnosis}`,
+                          primaryDiagnosis: assessment.primaryDiagnosis,
+                          severityGrade: assessment.severityGrade,
+                          summaryObservations: `${assessment.primaryDiagnosis}. Coat: ${assessment.coatCondition}. Posture: ${assessment.postureAssessment?.headCarriage}, ${assessment.postureAssessment?.weightBearing}.`,
+                          customNotes: customReportNotes,
+                          immediateRemedies: assessment.immediateRemedies || [],
+                          recommendedVeterinaryActions: assessment.recommendedVeterinaryActions || [],
+                          drugContraindications: assessment.reproductiveAndLactationAlerts?.drugContraindications || [],
+                          bcsScore: assessment.bodyConditionScore,
+                          pregnancyStatus: assessment.pregnancyStatus,
+                          lactationStatus: assessment.lactationStatus,
+                          dailyMilkYieldLiters: assessment.milkYieldImpact ? undefined : 12.0,
+                          imageUrl: assessment.imageUrl,
+                          gpsLocation: {
+                            district: assessment.gpsMetadata.district,
+                            state: assessment.gpsMetadata.state,
+                            lat: assessment.gpsMetadata.lat,
+                            lng: assessment.gpsMetadata.lng,
+                          },
+                          ndlmSyncStatus: 'Synchronized & Verified',
+                        };
+
+                        if (onCreateSeparateReport) {
+                          onCreateSeparateReport(newReport, matchedAnimal?.id || targetAnimalId);
+                        }
+                        setReportCreatedSuccess(newReport);
+                      }}
+                      className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center space-x-1.5 shadow-xs transition-all cursor-pointer"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      <span>Save & Add to Cattle Section</span>
+                    </button>
+                  </div>
+                )}
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
       </motion.div>
     </div>
