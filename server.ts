@@ -64,6 +64,8 @@ async function startServer() {
         state = 'Gujarat',
         language = 'en',
         presetBreedHint,
+        isPreset = false,
+        scanMode = 'live',
       } = req.body;
 
       if (!image) {
@@ -71,47 +73,83 @@ async function startServer() {
       }
 
       const ai = getGeminiClient();
-      let analysisResult = null;
+      let analysisResult: any = null;
 
       if (ai) {
         try {
-          // Prepare image payload
+          // Prepare image payload with robust mime-type detection and remote URL fetching
           let imagePart: any;
           if (image.startsWith('data:image')) {
             const matches = image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
             if (matches && matches.length === 3) {
+              let mime = matches[1].toLowerCase();
+              if (mime.includes('png')) mime = 'image/png';
+              else if (mime.includes('webp')) mime = 'image/webp';
+              else if (mime.includes('heic')) mime = 'image/heic';
+              else mime = 'image/jpeg';
+
               imagePart = {
                 inlineData: {
-                  mimeType: matches[1],
+                  mimeType: mime,
                   data: matches[2],
                 },
               };
             }
+          } else if (image.startsWith('http://') || image.startsWith('https://')) {
+            // Preset catalog or external image URL -> fetch and supply inlineData
+            try {
+              const fetchResp = await fetch(image);
+              const arrayBuf = await fetchResp.arrayBuffer();
+              const b64 = Buffer.from(arrayBuf).toString('base64');
+              const ct = (fetchResp.headers.get('content-type') || 'image/jpeg').toLowerCase();
+              const mime = ct.includes('png') ? 'image/png' : ct.includes('webp') ? 'image/webp' : 'image/jpeg';
+              imagePart = {
+                inlineData: {
+                  mimeType: mime,
+                  data: b64,
+                },
+              };
+            } catch (fetchErr) {
+              console.warn('Could not fetch remote image for inlineData', fetchErr);
+            }
           }
 
-          const prompt = `You are an expert Senior Veterinary Radiologist, Clinical Diagnostician, and Livestock Epidemiologist for Bharat Pashudhan (NDLM) and ICAR-IVRI.
-Analyze this submitted image and clinical context with the highest degree of veterinary precision.
+          const prompt = `LIVESTOCK BIOMETRIC VISION ASSESSMENT & FRAUD REJECTION PROTOCOL.
+Role: Chief Veterinary Officer & Live Biometric Authenticator for Bharat Pashudhan (NDLM) & ICAR-IVRI.
 
-[CRITICAL INSTRUCTION - LIVING LIVESTOCK ANIMAL VS NON-LIVING OBJECT VALIDATION]:
-Step 1: Inspect whether this image contains a real, living livestock animal (specifically Cattle / Cow, Bull, Ox, Buffalo, Calf, Goat, or Sheep).
-- If the image depicts a NON-LIVING OBJECT (such as a chair, table, desk, water bottle, phone, laptop, vehicle, blank background, wall, paper, clothes, household item, electronic device, room interior, drawing/symbol of non-animal, human portrait without animal, or any inanimate non-livestock subject):
-  You MUST IMMEDIATELY return ONLY the following JSON structure:
-  {
-    "isNonLivingObject": true,
-    "rejectionReason": "NON LIVING OBJECT DETECTED",
-    "rejectionMessage": "NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY. The uploaded picture does not contain a living livestock animal (cattle, buffalo, goat, or sheep). Please position the animal inside the camera reticle and take a clear photo.",
-    "detectedObject": "<Specific name of detected inanimate object, e.g., Water Bottle / Office Chair / Laptop / Desk / Smartphone / Wall / Background / Paper>"
-  }
+STEP 1: MANDATORY LIVING LIVESTOCK SANITY CHECK (ZERO-TOLERANCE ANTI-SPOOFING):
+Examine the visual contents of the image with the strictest biometric and veterinary scrutiny.
+Determine whether this image clearly and indisputably contains a REAL, LIVING RUMINANT LIVESTOCK ANIMAL (Specifically: Cattle / Cow, Bull, Ox, Buffalo, Calf, Goat, or Sheep).
 
-- If and ONLY IF the image depicts a real LIVING LIVESTOCK ANIMAL:
-  Set "isNonLivingObject": false, and perform an ACCURATE, EVIDENCE-BASED DIAGNOSIS based directly on the visual features visible in the photo (skin surface, nodules, erosions, eye condition, udder shape, mucous membranes, coat texture, body conformation, spine curvature, and limb posture) combined with the provided symptoms:
-  - Species Hint: ${species}.
-  - Reported Symptoms: ${symptoms || 'Visual screening'}.
-  - Reported Pregnancy Status: ${pregnancyStatus}.
-  - Reported Lactation Status: ${lactationStatus}.
-  ${dailyMilkYieldLiters ? `Reported Daily Milk Yield: ${dailyMilkYieldLiters} Liters/day.` : ''}
-  - Location: ${district}, ${state} [Lat: ${latitude}, Lng: ${longitude}].
-  ${presetBreedHint ? `Preset Context: ${presetBreedHint}` : ''}
+CRITICAL REJECTION CONDITIONS:
+If the image shows ANY of the following:
+- Inanimate / Non-living objects (e.g., water bottle, cup, mug, plate, chair, desk, sofa, table, room wall, floor, ceiling, laptop, computer screen, monitor, keyboard, mouse, smartphone, mobile phone, headphones, charger, book, pen, paper, clothing, shoe, bed, vehicle, car, bike, appliance, electronics, household item, metal, wood, plastic container, toy, drawing, statue, icon, abstract background)
+- Human beings (e.g., selfie, human face, hand, arm, leg, portrait without a prominent livestock animal)
+- Non-livestock animals (e.g., dog, cat, bird, chicken, horse, fish, insect, wild animal)
+- Pitch black, blank, out-of-focus, or unidentifiable scene
+
+YOU MUST IMMEDIATELY REJECT THE IMAGE!
+Under NO circumstance should you invent, imagine, or hallucinate a cow or buffalo.
+Under NO circumstance should you diagnose disease or calculate BCS on an inanimate object.
+
+If rejected, return ONLY this JSON format:
+{
+  "isNonLivingObject": true,
+  "rejectionReason": "NON LIVING OBJECT DETECTED",
+  "rejectionMessage": "NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY",
+  "detectedObject": "<Specific name of the exact detected non-living item, e.g., Water Bottle / Office Desk / Laptop / Smartphone / Wall / Human Hand / Chair>"
+}
+
+STEP 2: CLINICAL PATHOLOGY DIAGNOSIS (ONLY APPLICABLE IF A REAL LIVING LIVESTOCK ANIMAL IS PRESENT):
+If and ONLY IF the image indisputably displays a living cattle, buffalo, goat, or sheep:
+Set "isNonLivingObject": false and perform an ACCURATE, EVIDENCE-BASED DIAGNOSIS based directly on the visual features visible in the photo (skin surface, nodules, erosions, eye condition, udder shape, mucous membranes, coat texture, body conformation, spine curvature, and limb posture) combined with the clinical context:
+- Species: ${species}.
+${symptoms ? `- Reported Symptoms: ${symptoms}.` : '- Visual Screening (No farmer symptoms reported).'}
+- Reported Pregnancy Status: ${pregnancyStatus}.
+- Reported Lactation Status: ${lactationStatus}.
+${dailyMilkYieldLiters ? `- Reported Daily Milk Yield: ${dailyMilkYieldLiters} Liters/day.` : ''}
+- Location: ${district}, ${state} [Lat: ${latitude}, Lng: ${longitude}].
+${presetBreedHint ? `- Context Breed Hint: ${presetBreedHint}` : ''}
 
 [DIAGNOSTIC CRITERIA & ACCURACY GUIDELINES]:
 Diagnose across the full spectrum of livestock pathology based on visible physical signs, anatomical markers, and anamnesis:
@@ -134,13 +172,34 @@ Diagnose across the full spectrum of livestock pathology based on visible physic
 
 Accurately compute Body Condition Score (BCS 1.0 to 5.0), coat condition, conformational metrics, precise bounding boxes (ymin, xmin, ymax, xmax between 0-100), trimester drug contraindications (e.g., Corticosteroids like Dexamethasone contraindicated in pregnancy), milk withdrawal guidelines, and official Bharat Pashudhan (NDLM) / ICAR-IVRI treatment protocols.
 
+CRITICAL REQUIREMENT - UNAMBIGUOUS DISEASE IDENTIFICATION:
+You MUST identify and state clearly the exact disease the cattle is suffering from (or clearly state if the animal is healthy).
+Always populate:
+- "isDiseased": true (or false if healthy)
+- "diseaseIdentified": "<Clear, canonical disease name: e.g. Lumpy Skin Disease (Capripoxvirus) / Foot and Mouth Disease (FMD) / Acute Clinical Bovine Mastitis / Infectious Bovine Keratoconjunctivitis (Pinkeye) / Bovine Theileriosis / Haemorrhagic Septicaemia (HS) / Black Quarter (BQ) / Bovine Dermatophytosis (Ringworm) / Bovine Sarcoptic Mange / Acute Ruminal Bloat / Postparturient Hypocalcemia (Milk Fever) / Healthy (No Disease Detected)>"
+- "diseaseCommonName": "<Local / Vernacular name, e.g. गांठदार त्वचा रोग (LSD) / खुरपका-मुंहपका (FMD) / थनैला रोग (Mastitis) / गलघोंटू (HS) / लंगड़ा बुखार (BQ) / चीचड़ी बुखार / आँख का रोग (Pinkeye) / दाद (Ringworm) / खाज (Mange) / अफारा (Bloat) / सूतिका ज्वर (Milk Fever) / स्वस्थ पशु>"
+- "diseaseStatus": "<Active Pathological Infection | Critical Contagious Outbreak | Moderate Clinical Condition | Mild Cutaneous Infection | Healthy / No Active Disease>"
+- "diseaseSummaryStatement": "<1-2 clear, unambiguous sentences declaring what disease the cattle is suffering from and why based on visual inspection. E.g.: The cattle is suffering from Lumpy Skin Disease (Capripoxvirus). Severe 2-4cm circumscribed cutaneous nodules are visible along the neck and lateral flank with pyrexic coat dullness. Immediate herd isolation and herbal topical application advised.>"
+- "symptomsObserved": ["Specific symptom 1 visually seen on the cattle", "Specific symptom 2 visually seen on the cattle", "Specific symptom 3 visually seen on the cattle"]
+- "primaryDiagnosis": "<Full formal diagnostic title, e.g. Suspected Lumpy Skin Disease (LSD) - Clinical Stage II>"
+
 Return strictly a JSON object with this format:
 {
   "isNonLivingObject": false,
+  "isDiseased": true,
+  "diseaseIdentified": "Lumpy Skin Disease (Capripoxvirus)",
+  "diseaseCommonName": "गांठदार त्वचा रोग (LSD / Ganthdar Rog)",
+  "diseaseStatus": "Active Pathological Infection",
+  "diseaseSummaryStatement": "The cattle is suffering from Lumpy Skin Disease (Capripoxvirus). Prominent 2-4cm circumscribed cutaneous nodules are visible across the cervical and thoracic regions with pyrexic coat dullness. Immediate herd isolation and herbal topical application advised.",
+  "symptomsObserved": [
+    "Circumscribed 2-4cm cutaneous nodules distributed on neck and flank",
+    "Pyrexic coat appearance with dull hair luster",
+    "Dorsal kyphosis indicating visceral discomfort"
+  ],
   "predictedBreed": "Gir (Bos indicus)",
   "breedConfidence": 94.5,
   "detectedSpecies": "${species}",
-  "pregnancyStatus": "${pregnancyStatus || 'Mid Gestation (4-6 Months)'}",
+  "pregnancyStatus": "${pregnancyStatus || 'Non-Pregnant (Open)'}",
   "lactationStatus": "${lactationStatus || 'Mid Lactation'}",
   "milkYieldImpact": "Estimated 30-45% temporary drop in daily yield due to systemic pyrexia and mastitis risk.",
   "reproductiveAndLactationAlerts": {
@@ -218,6 +277,7 @@ Return strictly a JSON object with this format:
           // Multi-model tier prioritizing responsive Flash models with graceful fallback for high demand (503)
           const candidateModels = [
             'gemini-3.1-flash-lite',
+            'gemini-3.8-flash',
             'gemini-3.7-flash',
             'gemini-flash-latest',
           ];
@@ -234,7 +294,7 @@ Return strictly a JSON object with this format:
                   contents: { parts },
                   config: {
                     responseMimeType: 'application/json',
-                    temperature: 0.2,
+                    temperature: 0.1,
                   },
                 });
 
@@ -267,24 +327,45 @@ Return strictly a JSON object with this format:
             if (analysisResult) break;
           }
         } catch (geminiError) {
-          console.warn('Gemini vision engine notice, activating smart domain knowledge engine.');
+          console.warn('Gemini vision engine notice, activating smart domain knowledge engine:', geminiError);
         }
       }
 
-      // If non-living object was detected by the vision model, reject immediately
-      if (analysisResult?.isNonLivingObject) {
+      // Check both explicit isNonLivingObject flag and heuristic keywords in detected fields
+      const detectedName = String(analysisResult?.detectedObject || '').toLowerCase();
+      const breedName = String(analysisResult?.predictedBreed || '').toLowerCase();
+      const primaryDiag = String(analysisResult?.primaryDiagnosis || '').toLowerCase();
+      const combinedStrings = `${detectedName} ${breedName} ${primaryDiag}`;
+      const hasNonLivingKeywords = /object|inanimate|non-living|furniture|chair|table|desk|bottle|cup|mug|laptop|phone|smartphone|computer|keyboard|mouse|human|person|wall|floor|ceiling|headphones|glass|pen|paper|cloth/i.test(
+        combinedStrings
+      );
+
+      // If non-living object was detected by the vision model or heuristic, reject immediately
+      if (analysisResult?.isNonLivingObject || hasNonLivingKeywords) {
         return res.status(422).json({
           error: 'NON LIVING OBJECT DETECTED',
           message: 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY',
           isNonLivingObject: true,
-          rejectionReason: analysisResult.rejectionReason || 'NON LIVING OBJECT DETECTED',
-          rejectionMessage: analysisResult.rejectionMessage || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY. The uploaded picture does not contain a living livestock animal (cattle, buffalo, goat, or sheep).',
-          detectedObject: analysisResult.detectedObject || 'Inanimate Object'
+          rejectionReason: 'NON LIVING OBJECT DETECTED',
+          rejectionMessage: 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY',
+          detectedObject: analysisResult?.detectedObject || (hasNonLivingKeywords ? analysisResult?.detectedObject || 'Inanimate Item' : 'Inanimate Object')
         });
       }
 
-      // Fallback domain logic if Gemini is unconfigured or returned null
+      // Fallback domain logic: STRICT ENFORCEMENT
+      // If this was a LIVE CAMERA scan or USER PHOTO UPLOAD (NOT a certified preset),
+      // and vision AI could not confirm a living livestock animal, WE MUST REJECT IT!
       if (!analysisResult) {
+        if (!isPreset && scanMode !== 'preset') {
+          return res.status(422).json({
+            error: 'NON LIVING OBJECT DETECTED',
+            message: 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY',
+            isNonLivingObject: true,
+            rejectionReason: 'NON LIVING OBJECT DETECTED',
+            rejectionMessage: 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY',
+            detectedObject: 'Inanimate Object or Unrecognized Subject'
+          });
+        }
         const symptomsLower = (symptoms || '').toLowerCase();
         const speciesLower = (species || '').toLowerCase();
         const presetLower = (presetBreedHint || '').toLowerCase();
@@ -1275,6 +1356,63 @@ Return strictly a JSON object with this format:
         }
       }
 
+      // Ensure clear disease identification fields are ALWAYS populated and unambiguous
+      const finalPrimaryDiag = String(analysisResult?.primaryDiagnosis || 'Clinical Examination Complete');
+      const isHealthyDiagnosis = /healthy|normal|no active|no pathological|optimal/i.test(finalPrimaryDiag) &&
+        !/stage|emergency|severe|fmd|lsd|mastitis|theileria|pinkeye|ringworm|bloat|mange|pox|pasteurella|clostridium|babesia|hypocalcemia/i.test(finalPrimaryDiag);
+
+      const isDiseased = analysisResult?.isDiseased !== undefined
+        ? Boolean(analysisResult.isDiseased)
+        : !isHealthyDiagnosis;
+
+      const fallbackDiseaseName = !isDiseased
+        ? 'Healthy (No Pathological Disease Detected)'
+        : finalPrimaryDiag.replace(/\s*-\s*Clinical Stage.*$/i, '').replace(/\s*-\s*Stage.*$/i, '').trim();
+
+      const diseaseIdentified = analysisResult?.diseaseIdentified || fallbackDiseaseName;
+
+      // Vernacular common name mapping helper
+      const getVernacularName = (disease: string) => {
+        const d = disease.toLowerCase();
+        if (d.includes('lumpy') || d.includes('lsd') || d.includes('capripox')) return 'गांठदार त्वचा रोग (LSD / Ganthdar Rog)';
+        if (d.includes('foot and mouth') || d.includes('fmd') || d.includes('aphtho')) return 'खुरपका-मुंहपका (FMD / Khurpak-Munhpak)';
+        if (d.includes('mastitis') || d.includes('udder')) return 'थनैला रोग (Mastitis / Thanela)';
+        if (d.includes('theileria') || d.includes('tick')) return 'चीचड़ी बुखार (Tick Fever / Theileriosis)';
+        if (d.includes('pinkeye') || d.includes('kerato') || d.includes('moraxella')) return 'आँख का रोग (Pinkeye / Ankh Rog)';
+        if (d.includes('ringworm') || d.includes('dermatophyt') || d.includes('trichophyton')) return 'दाद रोग (Ringworm / Daad)';
+        if (d.includes('haemorrhagic') || d.includes('hs') || d.includes('galghotu') || d.includes('pasteurella')) return 'गलघोंटू (HS / Galghotu)';
+        if (d.includes('black quarter') || d.includes('bq') || d.includes('clostridium')) return 'लंगड़ा बुखार (Black Quarter / BQ)';
+        if (d.includes('mange') || d.includes('scabies') || d.includes('acariasis')) return 'खाज-खुजली (Mange / Khujli)';
+        if (d.includes('babesia') || d.includes('redwater')) return 'लाल पेशाब बुखार (Babesiosis / Redwater)';
+        if (d.includes('bloat') || d.includes('tympany')) return 'अफारा / पेट फूलना (Acute Bloat)';
+        if (d.includes('milk fever') || d.includes('hypocalcemia') || d.includes('paresis')) return 'सूतिका ज्वर (Milk Fever / Parturient Paresis)';
+        if (d.includes('healthy')) return 'स्वस्थ पशु (Healthy Livestock)';
+        return `${disease} (पशु रोग)`;
+      };
+
+      const diseaseCommonName = analysisResult?.diseaseCommonName || getVernacularName(diseaseIdentified);
+
+      const diseaseStatus = analysisResult?.diseaseStatus || (
+        !isDiseased ? 'Healthy / No Active Pathology' :
+        analysisResult?.severityGrade === 'Emergency Quarantine' ? 'Critical Contagious Epidemic Outbreak' :
+        analysisResult?.severityGrade === 'Severe' ? 'Active Severe Pathological Infection' :
+        'Active Clinical Pathology'
+      );
+
+      const diseaseSummaryStatement = analysisResult?.diseaseSummaryStatement || (
+        !isDiseased
+          ? 'The cattle is evaluated as Healthy with no visible clinical pathology or infectious lesions detected. Normal coat luster, clear eyes and muzzle, and balanced conformation observed.'
+          : `The cattle is suffering from ${diseaseIdentified} (${analysisResult?.severityGrade || 'Moderate'} severity). Visible clinical signs include ${analysisResult?.coatCondition || 'cutaneous/postural abnormalities'} requiring immediate veterinary attention.`
+      );
+
+      const symptomsObserved = (Array.isArray(analysisResult?.symptomsObserved) && analysisResult.symptomsObserved.length > 0)
+        ? analysisResult.symptomsObserved
+        : (analysisResult?.lesions && analysisResult.lesions.length > 0)
+          ? analysisResult.lesions.map((l: any) => `${l.label} (${l.anatomicalLocation})`)
+          : !isDiseased
+            ? ['Clean muzzle with normal perspiration beads', 'Smooth, glossy hair coat without lesions', 'Erect and alert head carriage', 'Balanced four-limb weight bearing']
+            : ['Observable physical cutaneous and posture abnormalities noted during vision scan'];
+
       // Append metadata
       const assessmentId = `diag-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
       const completedAssessment = {
@@ -1290,6 +1428,12 @@ Return strictly a JSON object with this format:
         },
         audioLanguage: language,
         ...analysisResult,
+        isDiseased,
+        diseaseIdentified,
+        diseaseCommonName,
+        diseaseStatus,
+        diseaseSummaryStatement,
+        symptomsObserved,
       };
 
       res.json(completedAssessment);
