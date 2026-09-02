@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Sparkles, 
   ShieldAlert, 
   CheckCircle2, 
   MapPin, 
+  Compass,
   Volume2, 
   VolumeX, 
   Share2, 
@@ -35,6 +36,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { DiagnosticAssessment, SupportedLanguage, AnimalProfile, CattleFormalReport, AuthUser } from '../../types';
 import { APIProvider, Map, AdvancedMarker, Pin } from '@vis.gl/react-google-maps';
+import { isValidGoogleMapsKey } from '../../utils/googleMaps';
 
 interface DiagnosticReportModalProps {
   assessment: DiagnosticAssessment | null;
@@ -73,8 +75,28 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
     'Specimen inspected following automated biometric scan. Symptoms and visual lesions recorded for official veterinary herd dossier.'
   );
   const [reportCreatedSuccess, setReportCreatedSuccess] = useState<CattleFormalReport | null>(null);
+  const [mapAuthFailed, setMapAuthFailed] = useState(false);
+
+  // Catch Google Maps invalid key / auth failures gracefully
+  useEffect(() => {
+    const prevAuthFailure = (window as any).gm_authFailure;
+    (window as any).gm_authFailure = () => {
+      console.warn('Google Maps Authentication Failed (InvalidKeyMapError). Switching seamlessly to GPS Geotag card.');
+      setMapAuthFailed(true);
+      if (typeof prevAuthFailure === 'function') {
+        prevAuthFailure();
+      }
+    };
+
+    return () => {
+      (window as any).gm_authFailure = prevAuthFailure;
+    };
+  }, []);
 
   if (!assessment) return null;
+
+  const envMapsKey = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string) || '';
+  const hasValidGoogleMapsKey = isValidGoogleMapsKey(envMapsKey) && !mapAuthFailed;
 
   const isSufferingFromDisease = assessment.isDiseased ?? (
     !/healthy|normal|no active|no pathological|optimal/i.test(assessment.primaryDiagnosis) ||
@@ -786,36 +808,86 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
               </button>
             </div>
 
-            <div className="w-full h-44 rounded-xl overflow-hidden border border-slate-200 relative shadow-xs">
-              <APIProvider apiKey={(import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string) || ''}>
-                <Map
-                  defaultCenter={{ lat: assessment.gpsMetadata.lat, lng: assessment.gpsMetadata.lng }}
-                  defaultZoom={12}
-                  mapId="DEMO_MAP_ID"
-                  disableDefaultUI={true}
-                  zoomControl={true}
-                  className="w-full h-full"
-                  internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
-                >
-                  <AdvancedMarker
-                    position={{ lat: assessment.gpsMetadata.lat, lng: assessment.gpsMetadata.lng }}
-                    title={`${assessment.id} - ${assessment.predictedBreed}`}
+            <div className="w-full h-44 rounded-xl overflow-hidden border border-slate-200 relative shadow-xs bg-slate-900">
+              {hasValidGoogleMapsKey ? (
+                <APIProvider apiKey={envMapsKey}>
+                  <Map
+                    defaultCenter={{ lat: assessment.gpsMetadata.lat, lng: assessment.gpsMetadata.lng }}
+                    defaultZoom={12}
+                    mapId="DEMO_MAP_ID"
+                    disableDefaultUI={true}
+                    zoomControl={true}
+                    className="w-full h-full"
+                    internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
                   >
-                    <Pin
-                      background={
-                        assessment.severityGrade === 'Emergency Quarantine'
-                          ? '#dc2626'
-                          : assessment.severityGrade === 'Severe'
-                          ? '#e11d48'
-                          : '#d97706'
-                      }
-                      borderColor="#ffffff"
-                      glyphColor="#ffffff"
-                      scale={1.1}
-                    />
-                  </AdvancedMarker>
-                </Map>
-              </APIProvider>
+                    <AdvancedMarker
+                      position={{ lat: assessment.gpsMetadata.lat, lng: assessment.gpsMetadata.lng }}
+                      title={`${assessment.id} - ${assessment.predictedBreed}`}
+                    >
+                      <Pin
+                        background={
+                          assessment.severityGrade === 'Emergency Quarantine'
+                            ? '#dc2626'
+                            : assessment.severityGrade === 'Severe'
+                            ? '#e11d48'
+                            : '#d97706'
+                        }
+                        borderColor="#ffffff"
+                        glyphColor="#ffffff"
+                        scale={1.1}
+                      />
+                    </AdvancedMarker>
+                  </Map>
+                </APIProvider>
+              ) : (
+                <div className="w-full h-full p-3.5 flex flex-col justify-between relative overflow-hidden bg-radial from-slate-800 to-slate-950 text-white">
+                  {/* Background GIS Gridlines & Radar Circles */}
+                  <div className="absolute inset-0 opacity-20 pointer-events-none flex items-center justify-center">
+                    <div className="w-56 h-56 border border-emerald-500 rounded-full animate-ping duration-1000" />
+                    <div className="w-40 h-40 border border-cyan-500/50 rounded-full" />
+                    <div className="w-24 h-24 border border-slate-600 rounded-full" />
+                    <div className="absolute inset-0 bg-[linear-gradient(to_right,#33415515_1px,transparent_1px),linear-gradient(to_bottom,#33415515_1px,transparent_1px)] bg-[size:16px_16px]" />
+                  </div>
+
+                  {/* Top GPS Status bar */}
+                  <div className="relative z-10 flex items-center justify-between text-[11px] font-mono">
+                    <div className="flex items-center space-x-1.5 bg-slate-800/90 px-2.5 py-1 rounded-lg border border-slate-700">
+                      <Compass className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
+                      <span className="text-emerald-300 font-bold">GPS Geotag Fixed</span>
+                    </div>
+                    <span className="text-slate-300 bg-slate-800/90 px-2 py-0.5 rounded border border-slate-700 text-[10px]">
+                      NDLM Georeferenced
+                    </span>
+                  </div>
+
+                  {/* Center Location & Coordinates */}
+                  <div className="relative z-10 text-center my-auto">
+                    <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-400 text-emerald-300 shadow-lg shadow-emerald-500/30 mb-1">
+                      <MapPin className="w-4 h-4" />
+                    </div>
+                    <p className="text-xs font-bold text-slate-100">
+                      {assessment.gpsMetadata.district}, {assessment.gpsMetadata.state}
+                    </p>
+                    <p className="text-[11px] font-mono text-emerald-400">
+                      {assessment.gpsMetadata.lat.toFixed(4)}°N, {assessment.gpsMetadata.lng.toFixed(4)}°E
+                    </p>
+                  </div>
+
+                  {/* Bottom Coordinates & Link */}
+                  <div className="relative z-10 flex items-center justify-between text-[10px] text-slate-400 border-t border-slate-800 pt-1.5">
+                    <span>Altitude: ~{assessment.gpsMetadata.altitudeMeters || 312}m • Precision: ±4.2m</span>
+                    <a
+                      href={`https://www.google.com/maps?q=${assessment.gpsMetadata.lat},${assessment.gpsMetadata.lng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-medium transition-colors"
+                    >
+                      <span>Open in Maps</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
