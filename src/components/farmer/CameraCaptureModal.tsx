@@ -196,13 +196,14 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
   };
 
   const handleExecuteScan = async () => {
+    const isPreset = activeMode === 'preset';
     let targetImage = selectedPreset.imageUrl;
     let presetHint = selectedPreset.breed;
 
     if (activeMode === 'live') {
       if (capturedLivePhoto) {
         targetImage = capturedLivePhoto;
-        presetHint = `${species} camera specimen`;
+        presetHint = `${species} live camera capture`;
       } else {
         // Auto-snap current live camera frame if clicked directly
         const snapped = getCanvasFrame();
@@ -211,38 +212,51 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
           setCapturedLivePhoto(snapped);
           stopCamera();
         }
-        presetHint = `${species} live camera specimen`;
+        presetHint = `${species} live camera capture`;
       }
     } else if (activeMode === 'upload' && uploadedImage) {
       targetImage = uploadedImage;
-      presetHint = `${species} custom upload`;
+      presetHint = `${species} photo upload`;
     }
 
+    if (!targetImage || targetImage.length < 50) {
+      setRejectionData({
+        title: 'NON LIVING OBJECT DETECTED',
+        message: 'PLEASE RETAKE PROPERLY',
+        detectedObject: 'Blank or missing frame',
+        details: 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY. The frame is blank. Please aim camera at the animal or upload a valid photo.'
+      });
+      return;
+    }
+
+    // Only inject preset symptoms if actually in preset mode; never for live or uploaded images!
+    const effectiveSymptoms = isPreset ? (symptomsText || selectedPreset.symptoms) : symptomsText.trim();
+
+    setRejectionData(null);
     setActiveScanningImage(targetImage);
     setIsProcessing(true);
-    setProcessingProgress(15);
-    setProcessingStage('1. Calibrating edge biometric alignment on clicked specimen...');
+    setProcessingProgress(25);
+    setProcessingStage('1. Biometric edge alignment & living animal discriminator...');
+
+    const activeTimers: NodeJS.Timeout[] = [];
+
+    const t1 = setTimeout(() => {
+      setProcessingProgress(50);
+      setProcessingStage('2. Multi-Modal Vision: Analyzing coat, lesions & anatomical markers...');
+    }, 450);
+    activeTimers.push(t1);
+
+    const t2 = setTimeout(() => {
+      setProcessingProgress(75);
+      setProcessingStage('3. Evaluating Gestation, Lactation & ICAR-IVRI Pathology...');
+    }, 900);
+    activeTimers.push(t2);
 
     try {
-      const t1 = setTimeout(() => {
-        setProcessingProgress(42);
-        setProcessingStage('2. Multi-Modal Vision: Analyzing spine curvature, coat condition & lesion nodules...');
-      }, 750);
-
-      const t2 = setTimeout(() => {
-        setProcessingProgress(68);
-        setProcessingStage('3. Evaluating Gestational Stage, Lactation Phase & Contraindicated Drug Protocols...');
-      }, 1550);
-
-      const t3 = setTimeout(() => {
-        setProcessingProgress(90);
-        setProcessingStage('4. Bharat Pashudhan (NDLM) & IEEE Dataport knowledge vector retrieval...');
-      }, 2350);
-
       const assessment = await runLivestockAssessment({
         image: targetImage,
         species: species,
-        symptoms: symptomsText || selectedPreset.symptoms,
+        symptoms: effectiveSymptoms,
         pregnancyStatus: pregnancyStatus,
         lactationStatus: lactationStatus,
         dailyMilkYieldLiters: dailyMilkYield,
@@ -252,31 +266,30 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
         state: gpsData.state,
         language: language,
         presetBreedHint: presetHint,
+        isPreset: isPreset,
+        scanMode: activeMode,
       });
 
+      activeTimers.forEach(clearTimeout);
+      setProcessingProgress(100);
+      setProcessingStage('4. Diagnostic analysis verified. Rendering clinical report...');
+      
       setTimeout(() => {
-        clearTimeout(t1);
-        clearTimeout(t2);
-        clearTimeout(t3);
-        setProcessingProgress(100);
-        setProcessingStage('5. Synthesis complete. Launching clinical diagnostic report...');
-        
-        setTimeout(() => {
-          setIsProcessing(false);
-          onAssessmentComplete(assessment);
-          onClose();
-        }, 600);
-      }, 2400);
+        setIsProcessing(false);
+        onAssessmentComplete(assessment);
+        onClose();
+      }, 350);
     } catch (err: any) {
-      console.warn('Livestock scanner evaluation note:', err);
+      activeTimers.forEach(clearTimeout);
+      console.warn('Livestock scanner rejection note:', err);
       setIsProcessing(false);
       
-      // Trigger user requested rejection message for non-living objects
+      // Strict rejection modal display for non-living objects
       setRejectionData({
         title: 'NON LIVING OBJECT DETECTED',
         message: 'PLEASE RETAKE PROPERLY',
         detectedObject: err?.detectedObject || 'Inanimate / Non-livestock item',
-        details: err?.rejectionMessage || 'The scanned picture does not contain a living livestock animal (cattle, buffalo, goat, or sheep). Please ensure the animal is centered within the frame under good lighting.'
+        details: err?.rejectionMessage || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY. The uploaded picture does not contain a living livestock animal (cattle, buffalo, goat, or sheep). Please position the animal inside the camera reticle and take a clear photo.'
       });
     }
   };

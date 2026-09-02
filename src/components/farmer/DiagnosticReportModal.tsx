@@ -28,7 +28,9 @@ import {
   FilePlus,
   FileCheck,
   Save,
-  Plus
+  Plus,
+  AlertCircle,
+  Eye
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DiagnosticAssessment, SupportedLanguage, AnimalProfile, CattleFormalReport, AuthUser } from '../../types';
@@ -74,6 +76,40 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
 
   if (!assessment) return null;
 
+  const isSufferingFromDisease = assessment.isDiseased ?? (
+    !/healthy|normal|no active|no pathological|optimal/i.test(assessment.primaryDiagnosis) ||
+    assessment.severityGrade === 'Emergency Quarantine' ||
+    assessment.severityGrade === 'Severe' ||
+    assessment.severityGrade === 'Moderate'
+  );
+
+  const identifiedDisease = assessment.diseaseIdentified || (
+    isSufferingFromDisease
+      ? assessment.primaryDiagnosis.replace(/\s*-\s*Clinical Stage.*$/i, '').replace(/\s*-\s*Stage.*$/i, '').trim()
+      : 'Healthy (No Disease Detected)'
+  );
+
+  const commonDiseaseName = assessment.diseaseCommonName;
+  const diseaseStatusLabel = assessment.diseaseStatus || (
+    isSufferingFromDisease
+      ? (assessment.severityGrade === 'Emergency Quarantine' ? 'Critical Outbreak Alert' : 'Active Clinical Condition')
+      : 'Healthy Livestock Confirmed'
+  );
+
+  const diseaseStatement = assessment.diseaseSummaryStatement || (
+    isSufferingFromDisease
+      ? `The cattle is suffering from ${identifiedDisease} (${assessment.severityGrade || 'Clinical'} Grade). Prompt isolation, veterinary evaluation, and supportive intervention recommended.`
+      : 'The cattle is evaluated as Healthy with no visible clinical pathology or infectious lesions detected. Normal coat luster, clear eyes and muzzle, and balanced conformation observed.'
+  );
+
+  const observedSymptomsList = assessment.symptomsObserved && assessment.symptomsObserved.length > 0
+    ? assessment.symptomsObserved
+    : (assessment.lesions && assessment.lesions.length > 0)
+      ? assessment.lesions.map(l => `${l.label} (${l.anatomicalLocation})`)
+      : isSufferingFromDisease
+        ? ['Cutaneous lesions or postural discomfort observed during camera scan']
+        : ['Clear eyes and moist muzzle perspiration', 'Smooth, glossy coat without lesions', 'Alert upright posture and symmetrical gait'];
+
   // Text to Speech narrative for rural farmers
   const handleVoiceNarrative = () => {
     if ('speechSynthesis' in window) {
@@ -109,30 +145,69 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
         sa: 'hi-IN',  // Sanskrit
       };
 
-      let narrativeText = `Livestock Health Report: Primary finding is ${assessment.primaryDiagnosis}. Detected breed is ${assessment.predictedBreed} with ${assessment.breedConfidence}% confidence. Body Condition Score is ${assessment.bodyConditionScore}. Immediate remedies: ${assessment.immediateRemedies.join('. ')}.`;
+      const isDiseased = assessment.isDiseased ?? (
+        !/healthy|normal|no active|no pathological|optimal/i.test(assessment.primaryDiagnosis) ||
+        assessment.severityGrade === 'Emergency Quarantine' ||
+        assessment.severityGrade === 'Severe' ||
+        assessment.severityGrade === 'Moderate'
+      );
+
+      const diseaseTitle = assessment.diseaseIdentified || (
+        isDiseased
+          ? assessment.primaryDiagnosis.replace(/\s*-\s*Clinical Stage.*$/i, '').replace(/\s*-\s*Stage.*$/i, '').trim()
+          : 'Healthy (No Disease Detected)'
+      );
+
+      const localDiseaseName = assessment.diseaseCommonName || diseaseTitle;
+
+      let narrativeText = isDiseased
+        ? `Gemini AI Diagnosis: The cattle is suffering from ${diseaseTitle}. ${assessment.diseaseSummaryStatement || ''} Severity level is ${assessment.severityGrade}. Immediate remedies: ${assessment.immediateRemedies.join('. ')}.`
+        : `Gemini AI Diagnosis: The cattle is healthy. No disease detected. ${assessment.diseaseSummaryStatement || ''} Body Condition Score is ${assessment.bodyConditionScore}.`;
 
       if (language === 'hi' || language === 'mai' || language === 'doi' || language === 'sa') {
-        narrativeText = `पशु स्वास्थ्य रिपोर्ट: प्राथमिक निदान है ${assessment.primaryDiagnosis}. नस्ल है ${assessment.predictedBreed}. शारीरिक स्थिति स्कोर ${assessment.bodyConditionScore} है. तत्काल उपाय: ${assessment.immediateRemedies.join(', ')}.`;
+        narrativeText = isDiseased
+          ? `जेमिनी एआई निदान: पशु ${localDiseaseName} से पीड़ित है। ${assessment.diseaseSummaryStatement || ''} गंभीरता स्तर ${assessment.severityGrade} है। तत्काल उपाय: ${assessment.immediateRemedies.join(', ')}।`
+          : `जेमिनी एआई निदान: पशु पूरी तरह स्वस्थ है और किसी भी रोग के लक्षण नहीं पाए गए हैं। शारीरिक स्थिति स्कोर ${assessment.bodyConditionScore} है।`;
       } else if (language === 'bn' || language === 'as' || language === 'mni') {
-        narrativeText = `পশু স্বাস্থ্য রিপোর্ট: প্রাথমিক রোগ নির্ণয় ${assessment.primaryDiagnosis}। জাত ${assessment.predictedBreed}। বডি কন্ডিশন স্কোর ${assessment.bodyConditionScore}। জরুরি চিকিৎসা: ${assessment.immediateRemedies.join(', ')}।`;
+        narrativeText = isDiseased
+          ? `জেমিনি এআই রোগ নির্ণয়: পশুটি ${diseaseTitle} রোগে ভুগছে। মাত্রা: ${assessment.severityGrade}। জরুরি চিকিৎসা: ${assessment.immediateRemedies.join(', ')}।`
+          : `জেমিনি এআই রোগ নির্ণয়: পশুটি সম্পূর্ণ সুস্থ, কোনো রোগ শনাক্ত হয়নি।`;
       } else if (language === 'mr' || language === 'kok') {
-        narrativeText = `पशु आरोग्य अहवाल: प्राथमिक निदान ${assessment.primaryDiagnosis} आहे. जात ${assessment.predictedBreed}. शरीर स्थिती गुण ${assessment.bodyConditionScore}. तातडीचे उपाय: ${assessment.immediateRemedies.join(', ')}.`;
+        narrativeText = isDiseased
+          ? `जेमिनी एआय निदान: पशु ${localDiseaseName} ने ग्रस्त आहे. तीव्रता स्तर ${assessment.severityGrade} आहे. तातडीचे उपाय: ${assessment.immediateRemedies.join(', ')}.`
+          : `जेमिनी एआय निदान: पशु पूर्णपणे निरोगी आहे आणि कोणताही आजार नाही.`;
       } else if (language === 'gu') {
-        narrativeText = `પશુ આરોગ્ય અહેવાલ: પ્રાથમિક નિદાન ${assessment.primaryDiagnosis} છે. ઓલાદ ${assessment.predictedBreed}. શારીરિક સ્થિતિ સ્કોર ${assessment.bodyConditionScore}. તાત્કાલિક ઉપાયો: ${assessment.immediateRemedies.join(', ')}.`;
+        narrativeText = isDiseased
+          ? `જેમિની AI નિદાન: પશુ ${localDiseaseName} રોગથી પીડાઈ રહ્યું છે. તીવ્રતા સ્તર ${assessment.severityGrade} છે. તાત્કાલિક ઉપાયો: ${assessment.immediateRemedies.join(', ')}.`
+          : `જેમિની AI નિદાન: પશુ સંપૂર્ણ સ્વસ્થ છે અને કોઈ રોગના લક્ષણ નથી.`;
       } else if (language === 'pa') {
-        narrativeText = `ਪਸ਼ੂ ਸਿਹਤ ਰਿਪੋਰਟ: ਮੁੱਖ ਨਿਦਾਨ ${assessment.primaryDiagnosis} ਹੈ। ਨਸਲ ${assessment.predictedBreed}। ਸਰੀਰਕ ਸਥਿਤੀ ਸਕੋਰ ${assessment.bodyConditionScore}। ਤੁਰੰਤ ਉਪਾਅ: ${assessment.immediateRemedies.join(', ')}।`;
+        narrativeText = isDiseased
+          ? `ਜੈਮਿਨੀ ਏਆਈ ਨਿਦਾਨ: ਪਸ਼ੂ ${localDiseaseName} ਤੋਂ ਪੀੜਤ ਹੈ। ਤੀਬਰਤਾ ਪੱਧਰ ${assessment.severityGrade} ਹੈ। ਤੁਰੰਤ ਉਪਾਅ: ${assessment.immediateRemedies.join(', ')}।`
+          : `ਜੈਮਿਨੀ ਏਆਈ ਨਿਦਾਨ: ਪਸ਼ੂ ਪੂਰੀ ਤਰ੍ਹਾਂ ਤੰਦਰੁਸਤ ਹੈ।`;
       } else if (language === 'te') {
-        narrativeText = `పశు ఆరోగ్య నివేదిక: ప్రాథమిక నిర్ధారణ ${assessment.primaryDiagnosis}. జాతి ${assessment.predictedBreed}. శరీర స్థితి స్కోరు ${assessment.bodyConditionScore}. తక్షణ నివారణోపాయాలు: ${assessment.immediateRemedies.join(', ')}.`;
+        narrativeText = isDiseased
+          ? `జెమిని AI నిర్ధారణ: పశువు ${diseaseTitle} వ్యాధితో బాధపడుతోంది. తీవ్రత ${assessment.severityGrade}. తక్షణ చికిత్స: ${assessment.immediateRemedies.join(', ')}.`
+          : `జెమిని AI నిర్ధారణ: పశువు సంపూర్ణ ఆరోగ్యంగా ఉంది.`;
       } else if (language === 'ta') {
-        narrativeText = `கால்நடை சுகாதார அறிக்கை: முதன்மை நோய் கண்டறிதல் ${assessment.primaryDiagnosis}. இனம் ${assessment.predictedBreed}. உடல் நிலை மதிப்பீடு ${assessment.bodyConditionScore}. உடனடி தீர்வுகள்: ${assessment.immediateRemedies.join(', ')}.`;
+        narrativeText = isDiseased
+          ? `ஜெமினி AI நோய் கண்டறிதல்: கால்நடை ${diseaseTitle} நோயால் பாதிக்கப்பட்டுள்ளது. தீவிர நிலை ${assessment.severityGrade}. உடனடி தீர்வுகள்: ${assessment.immediateRemedies.join(', ')}.`
+          : `ஜெமினி AI நோய் கண்டறிதல்: கால்நடை முழு ஆரோக்கியத்துடன் உள்ளது.`;
       } else if (language === 'kn') {
-        narrativeText = `ಪಶು ಆರೋಗ್ಯ ವರದಿ: ಪ್ರಾಥಮಿಕ ರೋಗನಿರ್ಣಯ ${assessment.primaryDiagnosis}. ತಳಿ ${assessment.predictedBreed}. ದೇಹ ಸ್ಥಿತಿ ಸ್ಕೋರ್ ${assessment.bodyConditionScore}. ತಕ್ಷಣದ ಪರಿಹಾರಗಳು: ${assessment.immediateRemedies.join(', ')}.`;
+        narrativeText = isDiseased
+          ? `ಜೆಮಿನಿ AI ರೋಗನಿರ್ಣಯ: ದನವು ${diseaseTitle} ರೋಗದಿಂದ ಬಳಲುತ್ತಿದೆ. ತೀವ್ರತೆಯ ಮಟ್ಟ ${assessment.severityGrade}. ತಕ್ಷಣದ ಪರಿಹಾರಗಳು: ${assessment.immediateRemedies.join(', ')}.`
+          : `ಜೆಮಿನಿ AI ರೋಗನಿರ್ಣಯ: ದನವು ಸಂಪೂರ್ಣ ಆರೋಗ್ಯಕರವಾಗಿದೆ.`;
       } else if (language === 'ml') {
-        narrativeText = `കന്നുകാലി ആരോഗ്യ റിപ്പോർട്ട്: പ്രാഥമിക രോഗനിർണയം ${assessment.primaryDiagnosis}. ഇനം ${assessment.predictedBreed}. ബോഡി കണ്ടീഷൻ സ്കോർ ${assessment.bodyConditionScore}. അടിയന്തര പരിഹാരങ്ങൾ: ${assessment.immediateRemedies.join(', ')}.`;
+        narrativeText = isDiseased
+          ? `ജെമിനി AI രോഗനിർണയം: കന്നുകാലി ${diseaseTitle} രോഗത്താൽ ബുദ്ധിമുട്ടുന്നു. തീവ്രത ${assessment.severityGrade}. അടിയന്തര പരിഹാരങ്ങൾ: ${assessment.immediateRemedies.join(', ')}.`
+          : `ജെമിനി AI രോഗനിർണയം: കന്നുകാലി പൂർണ്ണ ആരോഗ്യവാനാണ്.`;
       } else if (language === 'or') {
-        narrativeText = `ପଶୁ ସ୍ୱାସ୍ଥ୍ୟ ରିପୋର୍ଟ: ପ୍ରାଥମିକ ଚିହ୍ନଟ ${assessment.primaryDiagnosis}। ନସଲ ${assessment.predictedBreed}। ଶାରୀରିକ ସ୍ଥିତି ସ୍କୋର ${assessment.bodyConditionScore}। ତୁରନ୍ତ ପ୍ରତିକାର: ${assessment.immediateRemedies.join(', ')}।`;
+        narrativeText = isDiseased
+          ? `ଜେମିନି AI ନିଦାନ: ପଶୁଟି ${diseaseTitle} ରୋଗରେ ପୀଡିତ ଅଛି। ଗମ୍ଭୀରତା: ${assessment.severityGrade}। ତୁରନ୍ତ ପ୍ରତିକାର: ${assessment.immediateRemedies.join(', ')}।`
+          : `ଜେମିନି AI ନିଦାନ: ପଶୁଟି ସମ୍ପୂର୍ଣ୍ଣ ସୁସ୍ଥ ଅଛି।`;
       } else if (language === 'ur' || language === 'ks' || language === 'sd') {
-        narrativeText = `مویشیوں کی صحت کی رپورٹ: بنیادی تشخیص ${assessment.primaryDiagnosis} ہے۔ نسل ${assessment.predictedBreed} ہے۔ جسمانی حالت کا اسکور ${assessment.bodyConditionScore} ہے۔ فوری تدابیر: ${assessment.immediateRemedies.join(', ')}۔`;
+        narrativeText = isDiseased
+          ? `جیمنی اے آئی تشخیص: مویشی ${diseaseTitle} کی بیماری میں مبتلا ہے۔ شدت: ${assessment.severityGrade}۔ فوری علاج: ${assessment.immediateRemedies.join(', ')}۔`
+          : `جیمنی اے آئی تشخیص: مویشی مکمل طور پر صحت مند ہے۔`;
       }
 
       const utterance = new SpeechSynthesisUtterance(narrativeText);
@@ -316,20 +391,131 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
             {/* Right: Breed, BCS & Conformational Biometrics (7 cols) */}
             <div className="lg:col-span-7 space-y-4">
               
-              {/* Primary Diagnosis Callout Banner */}
-              <div className="p-4 bg-emerald-50/80 border border-emerald-200 rounded-2xl space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                    Primary AI Diagnosis
-                  </span>
-                  <span className="text-[11px] text-slate-500 font-mono">
+              {/* GEMINI AI DISEASE IDENTIFICATION CENTERPIECE */}
+              <div
+                className={`p-4 sm:p-5 rounded-2xl border-2 shadow-md space-y-3.5 relative overflow-hidden ${
+                  isSufferingFromDisease
+                    ? 'bg-gradient-to-br from-rose-50/95 via-amber-50/40 to-white border-rose-400'
+                    : 'bg-gradient-to-br from-emerald-50/95 via-teal-50/40 to-white border-emerald-400'
+                }`}
+              >
+                {/* Accent Top Bar */}
+                <div
+                  className={`absolute top-0 inset-x-0 h-1.5 ${
+                    isSufferingFromDisease
+                      ? 'bg-gradient-to-r from-rose-500 via-amber-500 to-rose-600'
+                      : 'bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-600'
+                  }`}
+                />
+
+                {/* Top Badge Row */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
+                  <div className="flex items-center space-x-2">
+                    <span
+                      className={`text-[10px] sm:text-[11px] font-extrabold uppercase px-2.5 py-0.5 rounded-full flex items-center gap-1.5 border shadow-2xs ${
+                        isSufferingFromDisease
+                          ? 'bg-rose-100 text-rose-800 border-rose-300'
+                          : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                      }`}
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Gemini AI Veterinary Diagnosis
+                    </span>
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                        isSufferingFromDisease
+                          ? assessment.severityGrade === 'Emergency Quarantine'
+                            ? 'bg-rose-600 text-white border-rose-700 animate-pulse'
+                            : 'bg-amber-100 text-amber-900 border-amber-300'
+                          : 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                      }`}
+                    >
+                      {diseaseStatusLabel}
+                    </span>
+                  </div>
+
+                  <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">
                     NDLM Reference: {assessment.ragCitations[0]?.source || 'National Protocol'}
                   </span>
                 </div>
-                <h3 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
-                  {assessment.primaryDiagnosis}
-                </h3>
+
+                {/* Main Disease Declaration */}
+                <div className="space-y-1">
+                  <span
+                    className={`text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 ${
+                      isSufferingFromDisease ? 'text-rose-700' : 'text-emerald-800'
+                    }`}
+                  >
+                    {isSufferingFromDisease ? (
+                      <>
+                        <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                        <span>Cattle is Suffering From:</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span>Health Examination Result:</span>
+                      </>
+                    )}
+                  </span>
+
+                  <h3 className="text-xl sm:text-2xl font-black text-slate-950 tracking-tight leading-snug">
+                    {identifiedDisease}
+                  </h3>
+
+                  {commonDiseaseName && (
+                    <div className="flex items-center gap-1.5 pt-0.5">
+                      <span className="text-[11px] font-bold text-slate-500">Local / Vernacular Name:</span>
+                      <span className="text-xs font-bold text-slate-800 bg-white/90 px-2.5 py-0.5 rounded-md border border-slate-200 shadow-2xs">
+                        {commonDiseaseName}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Clear Clinical Statement */}
+                <div
+                  className={`p-3 rounded-xl border backdrop-blur-xs space-y-1 ${
+                    isSufferingFromDisease
+                      ? 'bg-white/95 border-rose-200'
+                      : 'bg-white/95 border-emerald-200'
+                  }`}
+                >
+                  <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                    Gemini AI Clinical Statement
+                  </span>
+                  <p className="text-xs sm:text-sm font-medium text-slate-900 leading-relaxed">
+                    {diseaseStatement}
+                  </p>
+                </div>
+
+                {/* Observable Symptoms Identified on Scanned Animal */}
+                <div className="space-y-1.5 pt-0.5">
+                  <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide flex items-center gap-1.5">
+                    <Eye className="w-3.5 h-3.5 text-slate-700" />
+                    {isSufferingFromDisease ? 'Visual Signs Detected on Scanned Cattle:' : 'Confirmed Clinical Signs:'}
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {observedSymptomsList.map((symptom, idx) => (
+                      <span
+                        key={idx}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 border shadow-2xs ${
+                          isSufferingFromDisease
+                            ? 'bg-rose-100/80 text-rose-900 border-rose-200'
+                            : 'bg-emerald-100/80 text-emerald-900 border-emerald-200'
+                        }`}
+                      >
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            isSufferingFromDisease ? 'bg-rose-500' : 'bg-emerald-500'
+                          }`}
+                        />
+                        {symptom}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               </div>
 
               {/* Breed & Species Identification Card */}

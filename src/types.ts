@@ -133,6 +133,12 @@ export interface DiagnosticAssessment {
   conformationalMetrics: ConformationalMetric[];
   lesions: LesionDetection[];
   primaryDiagnosis: string;
+  isDiseased?: boolean;
+  diseaseIdentified?: string;
+  diseaseCommonName?: string;
+  diseaseStatus?: string;
+  diseaseSummaryStatement?: string;
+  symptomsObserved?: string[];
   differentialDiagnoses: {
     disease: string;
     probability: number;

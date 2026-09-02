@@ -15,6 +15,8 @@ export async function runLivestockAssessment(params: {
   language?: string;
   presetBreedHint?: string;
   animalId?: string;
+  isPreset?: boolean;
+  scanMode?: 'preset' | 'live' | 'upload';
 }): Promise<DiagnosticAssessment> {
   try {
     const response = await fetch('/api/analyze-livestock', {
@@ -32,7 +34,7 @@ export async function runLivestockAssessment(params: {
       err.isNonLivingObject = true;
       err.detectedObject = data.detectedObject || 'Inanimate Non-Livestock Item';
       err.rejectionReason = data.rejectionReason || 'NON LIVING OBJECT DETECTED';
-      err.rejectionMessage = data.rejectionMessage || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY. The uploaded picture does not contain a living livestock animal (cattle, buffalo, goat, or sheep).';
+      err.rejectionMessage = data.rejectionMessage || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY';
       throw err;
     }
 
@@ -43,7 +45,18 @@ export async function runLivestockAssessment(params: {
       throw err;
     }
 
-    console.warn('API call notice, generating high-precision domain diagnosis:', err);
+    // STRICT REJECTION: If this was a live camera scan or user photo upload (NOT a certified preset),
+    // we MUST NOT fabricate an animal diagnosis. Reject as non-living or invalid scan.
+    if (!params.isPreset && params.scanMode !== 'preset') {
+      const nonLivingErr: any = new Error('NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY');
+      nonLivingErr.isNonLivingObject = true;
+      nonLivingErr.rejectionReason = 'NON LIVING OBJECT DETECTED';
+      nonLivingErr.rejectionMessage = 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY';
+      nonLivingErr.detectedObject = 'Inanimate Object or Unrecognized Subject';
+      throw nonLivingErr;
+    }
+
+    console.warn('API call notice, generating high-precision domain diagnosis for preset:', err);
     // Graceful offline fallback based on actual symptoms or presets
     const symptomsLower = (params.symptoms || '').toLowerCase();
     const presetLower = (params.presetBreedHint || '').toLowerCase();
