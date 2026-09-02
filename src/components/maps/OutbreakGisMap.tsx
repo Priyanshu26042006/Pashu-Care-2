@@ -9,6 +9,7 @@ import {
   useMap,
   useMapsLibrary
 } from '@vis.gl/react-google-maps';
+import { isValidGoogleMapsKey } from '../../utils/googleMaps';
 import {
   Radio,
   MapPin,
@@ -40,21 +41,6 @@ interface OutbreakGisMapProps {
   animals?: AnimalProfile[];
   onSelectAssessment?: (assessment: DiagnosticAssessment) => void;
   onIssueQuarantine?: (assessment: DiagnosticAssessment) => void;
-}
-
-function isValidGoogleMapsKey(key: string | undefined): boolean {
-  if (!key) return false;
-  const trimmed = key.trim();
-  if (
-    trimmed === '' ||
-    trimmed === 'YOUR_GOOGLE_MAPS_API_KEY' ||
-    trimmed === 'MY_GOOGLE_MAPS_API_KEY' ||
-    trimmed.includes('YOUR_') ||
-    trimmed.length < 15
-  ) {
-    return false;
-  }
-  return true;
 }
 
 // Helper component for drawing geodesic outbreak quarantine circles on Google Maps

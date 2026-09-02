@@ -27,21 +27,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { AnimalProfile, SupportedLanguage, CattleFormalReport } from '../../types';
 import { APIProvider, Map, AdvancedMarker, Pin } from '@vis.gl/react-google-maps';
-
-function isValidGoogleMapsKey(key: string | undefined): boolean {
-  if (!key) return false;
-  const trimmed = key.trim();
-  if (
-    trimmed === '' ||
-    trimmed === 'YOUR_GOOGLE_MAPS_API_KEY' ||
-    trimmed === 'MY_GOOGLE_MAPS_API_KEY' ||
-    trimmed.includes('YOUR_') ||
-    trimmed.length < 15
-  ) {
-    return false;
-  }
-  return true;
-}
+import { isValidGoogleMapsKey } from '../../utils/googleMaps';
 
 interface AnimalDetailModalProps {
   animal: AnimalProfile | null;
@@ -59,8 +45,26 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
   language,
 }) => {
   const [selectedReport, setSelectedReport] = useState<CattleFormalReport | null>(null);
+  const [mapAuthFailed, setMapAuthFailed] = useState(false);
+
+  useEffect(() => {
+    const prevAuthFailure = (window as any).gm_authFailure;
+    (window as any).gm_authFailure = () => {
+      console.warn('Google Maps Authentication Failed in AnimalDetailModal. Switching seamlessly to GPS Geotag card.');
+      setMapAuthFailed(true);
+      if (typeof prevAuthFailure === 'function') {
+        prevAuthFailure();
+      }
+    };
+    return () => {
+      (window as any).gm_authFailure = prevAuthFailure;
+    };
+  }, []);
 
   if (!animal) return null;
+
+  const envKey = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string) || '';
+  const hasValidKey = isValidGoogleMapsKey(envKey) && !mapAuthFailed;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 md:p-6">
@@ -243,8 +247,8 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
             </div>
 
             <div className="w-full h-48 rounded-xl overflow-hidden border border-slate-200 relative shadow-xs bg-slate-900">
-              {isValidGoogleMapsKey(import.meta.env.VITE_GOOGLE_MAPS_API_KEY) ? (
-                <APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>
+              {hasValidKey ? (
+                <APIProvider apiKey={envKey}>
                   <Map
                     defaultCenter={{ lat: animal.gpsLocation.lat, lng: animal.gpsLocation.lng }}
                     defaultZoom={13}
