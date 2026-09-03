@@ -180,159 +180,128 @@ async function startServer() {
             }
           }
 
-          const prompt = `LIVESTOCK BIOMETRIC VISION ASSESSMENT & FRAUD REJECTION PROTOCOL.
-Role: Chief Veterinary Officer & Live Biometric Authenticator for Bharat Pashudhan (NDLM) & ICAR-IVRI.
+          const prompt = `Role: Senior Veterinary Epidemiologist & AI Diagnostic Specialist for Bharat Pashudhan (NDLM) & ICAR-IVRI.
+Task: Conduct a comprehensive, evidence-based veterinary disease diagnosis on this livestock image captured via the Smart Guided Livestock Camera Scan.
 
-STEP 1: MANDATORY LIVING LIVESTOCK SANITY CHECK (ZERO-TOLERANCE ANTI-SPOOFING):
-Examine the visual contents of the image with the strictest biometric and veterinary scrutiny.
-Determine whether this image clearly and indisputably contains a REAL, LIVING RUMINANT LIVESTOCK ANIMAL (Specifically: Cattle / Cow, Bull, Ox, Buffalo, Calf, Goat, or Sheep).
+CLINICAL CONTEXT:
+- Target Species: ${species}
+${symptoms ? `- Farmer Reported Symptoms: "${symptoms}"` : '- Farmer Reported Symptoms: None provided (Rely on visual examination of anatomical regions, skin, and stance).'}
+- Gestation Status: ${pregnancyStatus || 'Non-Pregnant (Open)'}
+- Lactation Status: ${lactationStatus || 'Mid Lactation'}
+${dailyMilkYieldLiters ? `- Daily Milk Yield: ${dailyMilkYieldLiters} Liters/day` : ''}
+- Field Location: ${district || 'Satara'}, ${state || 'Maharashtra'} [Lat: ${latitude}, Lng: ${longitude}]
+${presetBreedHint ? `- Animal Context Hint: ${presetBreedHint}` : ''}
 
-CRITICAL REJECTION CONDITIONS:
-If the image shows ANY of the following:
-- Inanimate / Non-living objects (e.g., water bottle, cup, mug, plate, chair, desk, sofa, table, room wall, floor, ceiling, laptop, computer screen, monitor, keyboard, mouse, smartphone, mobile phone, headphones, charger, book, pen, paper, clothing, shoe, bed, vehicle, car, bike, appliance, electronics, household item, metal, wood, plastic container, toy, drawing, statue, icon, abstract background)
-- Human beings (e.g., selfie, human face, hand, arm, leg, portrait without a prominent livestock animal)
-- Non-livestock animals (e.g., dog, cat, bird, chicken, horse, fish, insect, wild animal)
-- Pitch black, blank, out-of-focus, or unidentifiable scene
+INSPECTION & DIAGNOSTIC DIRECTIVES:
+1. SUBJECT VALIDATION:
+   - Check if the image displays a living livestock animal (cattle / cow, bull, buffalo, calf, goat, sheep), a clinical specimen, or a photographic capture/screen of livestock.
+   - ONLY if the image is an unambiguous, completely non-animal inanimate item with ZERO livestock presence, symptoms, or veterinary context whatsoever (e.g. pure coffee mug, keyboard, car, empty room with no animal):
+     Return ONLY this JSON:
+     {
+       "isNonLivingObject": true,
+       "detectedObject": "<Name of inanimate item, e.g. Office Desk / Coffee Mug / Empty Background>",
+       "rejectionReason": "NON LIVING OBJECT DETECTED",
+       "rejectionMessage": "NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY. Please align the camera with your livestock animal (cattle, buffalo, goat, or sheep) to diagnose disease."
+     }
 
-YOU MUST IMMEDIATELY REJECT THE IMAGE!
-Under NO circumstance should you invent, imagine, or hallucinate a cow or buffalo.
-Under NO circumstance should you diagnose disease or calculate BCS on an inanimate object.
+2. CLINICAL PATHOLOGY ASSESSMENT:
+   - Thoroughly inspect all visible anatomical areas: cutaneous surface (nodules, alopecia, crusts, scabs, ticks), oral/muzzle region (vesicles, erosions, drooling), eyes (opacity, lacrimation, redness), udder/teats (swelling, asymmetry), abdomen (left fossa distension / bloat), and posture/spine (kyphosis, hunched stance, recumbency).
+   - SYNTHESIZE VISUAL SIGNS WITH REPORTED SYMPTOMS:
+     Weigh both visible features and farmer-reported symptoms. Detect across all major livestock pathologies:
+     * Lumpy Skin Disease (LSD / Capripoxvirus): 1-5cm firm circumscribed cutaneous nodules on neck/flank/perineum, fever, dull coat.
+     * Foot and Mouth Disease (FMD / Aphthovirus): Vesicles or ulcerated erosions on dental pad, tongue, interdigital cleft, stringy salivation, lameness.
+     * Clinical Bovine Mastitis: Udder quarter enlargement, swelling, induration, discolored or watery milk, heat.
+     * Bovine Theileriosis (Theileria annulata): Prescapular lymph node enlargement, pale conjunctiva (anemia), tick infestation.
+     * Infectious Bovine Keratoconjunctivitis (Pinkeye / Moraxella bovis): Central corneal cloudiness/opacity, lacrimation, photophobia.
+     * Bovine Dermatophytosis (Ringworm / Trichophyton): Circular, grayish asbestos-like crusty alopecic patches on face, periorbital, or neck.
+     * Haemorrhagic Septicaemia (HS / Galghotu): Severe submandibular throat swelling, acute dyspnea, stertorous breathing.
+     * Black Quarter (BQ / Clostridium): Crepitant crackling edematous muscle swelling in shoulder or hindquarter, severe lameness.
+     * Bovine Sarcoptic/Psoroptic Mange: Pruritus, intense scratching, lichenified thickened wrinkled skin.
+     * Bovine Babesiosis (Redwater Fever): High fever, severe anemia, hemoglobinuria (dark red/coffee urine).
+     * Acute Ruminal Bloat (Tympany): Distended left paralumbar fossa, respiratory distress.
+     * Postparturient Hypocalcemia (Milk Fever) & Ketosis: S-shaped neck curvature, cold extremities, weakness, recumbency.
+     * Contagious Ecthyma (Orf / Sore Mouth): Proliferative pustular crusts on lips, muzzle in small ruminants.
+     * Peste des Petits Ruminants (PPR): Ocular-nasal discharge, necrotic stomatitis, diarrhea in sheep/goats.
+     * Healthy Livestock: Clean moist muzzle, glossy coat, alert ears, straight dorsal spine, balanced weight bearing -> State "Healthy (No Pathological Disease Detected)".
 
-If rejected, return ONLY this JSON format:
-{
-  "isNonLivingObject": true,
-  "rejectionReason": "NON LIVING OBJECT DETECTED",
-  "rejectionMessage": "NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY",
-  "detectedObject": "<Specific name of the exact detected non-living item, e.g., Water Bottle / Office Desk / Laptop / Smartphone / Wall / Human Hand / Chair>"
-}
-
-STEP 2: CLINICAL PATHOLOGY DIAGNOSIS (ONLY APPLICABLE IF A REAL LIVING LIVESTOCK ANIMAL IS PRESENT):
-If and ONLY IF the image indisputably displays a living cattle, buffalo, goat, or sheep:
-Set "isNonLivingObject": false and perform an ACCURATE, EVIDENCE-BASED DIAGNOSIS based directly on the visual features visible in the photo (skin surface, nodules, erosions, eye condition, udder shape, mucous membranes, coat texture, body conformation, spine curvature, and limb posture) combined with the clinical context:
-- Species: ${species}.
-${symptoms ? `- Reported Symptoms: ${symptoms}.` : '- Visual Screening (No farmer symptoms reported).'}
-- Reported Pregnancy Status: ${pregnancyStatus}.
-- Reported Lactation Status: ${lactationStatus}.
-${dailyMilkYieldLiters ? `- Reported Daily Milk Yield: ${dailyMilkYieldLiters} Liters/day.` : ''}
-- Location: ${district}, ${state} [Lat: ${latitude}, Lng: ${longitude}].
-${presetBreedHint ? `- Context Breed Hint: ${presetBreedHint}` : ''}
-
-[DIAGNOSTIC CRITERIA & ACCURACY GUIDELINES]:
-Diagnose across the full spectrum of livestock pathology based on visible physical signs, anatomical markers, and anamnesis:
-1. Healthy Livestock: Clean muzzle sweat beads, glossy coat, alert ears/eyes, normal straight spine, symmetrical udder -> "Healthy Clinical Presentation (No Active Pathological Lesions Detected)" [Grade: Healthy]
-2. Lumpy Skin Disease (LSD / Capripoxvirus): Circumscribed 1-5cm cutaneous nodules on neck/flank, pyrexia -> "Lumpy Skin Disease (Capripoxvirus) - Clinical Stage II" [Grade: Moderate/Severe]
-3. Foot and Mouth Disease (FMD / Aphthovirus): Vesicles/ulcerations on dental pad/tongue/interdigital cleft, ropey salivation, lameness -> "Foot and Mouth Disease (FMD - Aphthovirus)" [Grade: Emergency Quarantine]
-4. Acute Clinical Mastitis: Asymmetrical swollen quarter, induration, clotted/watery milk, local heat -> "Acute Clinical Bovine Mastitis (Staphylococcal / Streptococcal / Coliform)" [Grade: Severe]
-5. Bovine Theileriosis (Theileria annulata): Prescapular/prefemoral lymph node enlargement, pale conjunctiva (anemia), tick burden -> "Bovine Theileriosis (Theileria annulata - Tick-borne Lymphadenopathy)" [Grade: Severe]
-6. Infectious Bovine Keratoconjunctivitis (Pinkeye / Moraxella bovis): Central corneal opacity/cloudiness, blepharospasm, lacrimation -> "Infectious Bovine Keratoconjunctivitis (Pinkeye / Moraxella bovis)" [Grade: Moderate]
-7. Bovine Dermatophytosis (Ringworm / Trichophyton verrucosum): Circular, circumscribed grayish crusty alopecic patches on face/periorbital/neck -> "Bovine Dermatophytosis (Ringworm / Trichophyton verrucosum)" [Grade: Mild]
-8. Haemorrhagic Septicaemia (HS / Galghotu / Pasteurella multocida): Severe submandibular throat swelling, acute dyspnea, stertorous breathing -> "Haemorrhagic Septicaemia (HS / Pasteurella multocida)" [Grade: Emergency Quarantine]
-9. Black Quarter (BQ / Clostridium chauvoei): Crepitant crackling edematous muscle swelling in hindquarter/shoulder, acute lameness -> "Black Quarter (BQ / Clostridium chauvoei)" [Grade: Emergency Quarantine]
-10. Bovine Sarcoptic/Psoroptic Mange (Acariasis / Scabies): Intense itching/pruritus, thickened lichenified wrinkled skin, crusting -> "Bovine Acariasis (Sarcoptic / Psoroptic Mange)" [Grade: Moderate]
-11. Bovine Babesiosis (Redwater Fever / Babesia bigemina): High fever, severe anemia, jaundice, hemoglobinuria (dark coffee/red urine) -> "Bovine Babesiosis (Redwater Fever / Babesia bigemina)" [Grade: Severe]
-12. Contagious Ecthyma (Orf / Sore Mouth): Proliferative crusted pustular scabs on lips, muzzle, and nostrils in goats/sheep/calves -> "Contagious Ecthyma (Orf / Parapoxvirus)" [Grade: Moderate]
-13. Peste des Petits Ruminants (PPR / Goat Plague): Mucopurulent ocular-nasal discharge, necrotic stomatitis, pneumonia, diarrhea in small ruminants -> "Peste des Petits Ruminants (PPR - Morbillivirus)" [Grade: Emergency Quarantine]
-14. Ruminal Bloat / Acute Tympany: Distended left paralumbar fossa, drum-like resonance, respiratory embarrassment -> "Acute Ruminal Bloat (Tympany / Frothy Bloat)" [Grade: Severe]
-15. Hypocalcemia (Milk Fever) & Ketosis: S-shaped neck posture, cold extremities, post-calving weakness, recumbency -> "Postparturient Hypocalcemia (Milk Fever / Ketosis)" [Grade: Severe]
-16. Bovine Ephemeral Fever (Three-Day Sickness): Sudden high pyrexia, shivering, shifting musculoskeletal stiffness -> "Bovine Ephemeral Fever (Three-Day Sickness / Rhabdovirus)" [Grade: Moderate]
-
-Accurately compute Body Condition Score (BCS 1.0 to 5.0), coat condition, conformational metrics, precise bounding boxes (ymin, xmin, ymax, xmax between 0-100), trimester drug contraindications (e.g., Corticosteroids like Dexamethasone contraindicated in pregnancy), milk withdrawal guidelines, and official Bharat Pashudhan (NDLM) / ICAR-IVRI treatment protocols.
-
-CRITICAL REQUIREMENT - UNAMBIGUOUS DISEASE IDENTIFICATION:
-You MUST identify and state clearly the exact disease the cattle is suffering from (or clearly state if the animal is healthy).
-Always populate:
-- "isDiseased": true (or false if healthy)
-- "diseaseIdentified": "<Clear, canonical disease name: e.g. Lumpy Skin Disease (Capripoxvirus) / Foot and Mouth Disease (FMD) / Acute Clinical Bovine Mastitis / Infectious Bovine Keratoconjunctivitis (Pinkeye) / Bovine Theileriosis / Haemorrhagic Septicaemia (HS) / Black Quarter (BQ) / Bovine Dermatophytosis (Ringworm) / Bovine Sarcoptic Mange / Acute Ruminal Bloat / Postparturient Hypocalcemia (Milk Fever) / Healthy (No Disease Detected)>"
-- "diseaseCommonName": "<Local / Vernacular name, e.g. गांठदार त्वचा रोग (LSD) / खुरपका-मुंहपका (FMD) / थनैला रोग (Mastitis) / गलघोंटू (HS) / लंगड़ा बुखार (BQ) / चीचड़ी बुखार / आँख का रोग (Pinkeye) / दाद (Ringworm) / खाज (Mange) / अफारा (Bloat) / सूतिका ज्वर (Milk Fever) / स्वस्थ पशु>"
-- "diseaseStatus": "<Active Pathological Infection | Critical Contagious Outbreak | Moderate Clinical Condition | Mild Cutaneous Infection | Healthy / No Active Disease>"
-- "diseaseSummaryStatement": "<1-2 clear, unambiguous sentences declaring what disease the cattle is suffering from and why based on visual inspection. E.g.: The cattle is suffering from Lumpy Skin Disease (Capripoxvirus). Severe 2-4cm circumscribed cutaneous nodules are visible along the neck and lateral flank with pyrexic coat dullness. Immediate herd isolation and herbal topical application advised.>"
-- "symptomsObserved": ["Specific symptom 1 visually seen on the cattle", "Specific symptom 2 visually seen on the cattle", "Specific symptom 3 visually seen on the cattle"]
-- "primaryDiagnosis": "<Full formal diagnostic title, e.g. Suspected Lumpy Skin Disease (LSD) - Clinical Stage II>"
-
-Return strictly a JSON object with this format:
-{
-  "isNonLivingObject": false,
-  "isDiseased": true,
-  "diseaseIdentified": "Lumpy Skin Disease (Capripoxvirus)",
-  "diseaseCommonName": "गांठदार त्वचा रोग (LSD / Ganthdar Rog)",
-  "diseaseStatus": "Active Pathological Infection",
-  "diseaseSummaryStatement": "The cattle is suffering from Lumpy Skin Disease (Capripoxvirus). Prominent 2-4cm circumscribed cutaneous nodules are visible across the cervical and thoracic regions with pyrexic coat dullness. Immediate herd isolation and herbal topical application advised.",
-  "symptomsObserved": [
-    "Circumscribed 2-4cm cutaneous nodules distributed on neck and flank",
-    "Pyrexic coat appearance with dull hair luster",
-    "Dorsal kyphosis indicating visceral discomfort"
-  ],
-  "predictedBreed": "Gir (Bos indicus)",
-  "breedConfidence": 94.5,
-  "detectedSpecies": "${species}",
-  "pregnancyStatus": "${pregnancyStatus || 'Non-Pregnant (Open)'}",
-  "lactationStatus": "${lactationStatus || 'Mid Lactation'}",
-  "milkYieldImpact": "Estimated 30-45% temporary drop in daily yield due to systemic pyrexia and mastitis risk.",
-  "reproductiveAndLactationAlerts": {
-    "pregnancyRiskNotes": "Stable mid-gestation. Maintain low stress handling; avoid rough chute squeeze.",
-    "lactationImpact": "Milk yield reduced from baseline. Check all 4 quarters with California Mastitis Test (CMT).",
-    "drugContraindications": [
-      "Avoid Corticosteroids (Dexamethasone/Isoflupredone) as they trigger luteolysis/abortion.",
-      "Observe 72-hour milk withdrawal period for systemic parenteral antibiotics before human consumption."
-    ],
-    "nutritionalRecommendation": "Supplement with 50g Mineral Mixture daily + high-calcium legume fodder (Berseem/Lucerne) to prevent negative energy balance."
-  },
-  "coatCondition": "Crusted / Nodular",
-  "postureAssessment": {
-    "spineCurvature": "Kyphosis (Hunched)",
-    "headCarriage": "Depressed / Drooping",
-    "weightBearing": "Equal on all 4 limbs",
-    "gaitConfidence": 91.2
-  },
-  "bodyConditionScore": 3.1,
-  "conformationalMetrics": [
-    {"metric": "Spine Alignment Index", "score": 74, "benchmark": "85-100 Normal", "status": "Sub-optimal", "details": "Dorsal arching due to visceral discomfort."}
-  ],
-  "lesions": [
-    {
-      "id": "les-01",
-      "label": "Cutaneous Circumscribed Nodules",
-      "confidence": 95.8,
-      "severity": "Moderate",
-      "boundingBox": {"ymin": 28, "xmin": 34, "ymax": 52, "xmax": 62},
-      "anatomicalLocation": "Lateral Flank & Neck",
-      "clinicalDescription": "2-4cm firm nodules typical of Capripoxvirus"
-    }
-  ],
-  "primaryDiagnosis": "Suspected Lumpy Skin Disease (LSD) - Stage II",
-  "differentialDiagnoses": [
-    {
-      "disease": "Lumpy Skin Disease (Capripoxvirus)",
-      "probability": 89.0,
-      "keyIndications": ["Nodular skin eruptions", "Enlarged prescapular lymph node", "Pyrexia"],
-      "sourceDataset": "Bharat Pashudhan & ICAR-NIVEDI"
-    }
-  ],
-  "severityGrade": "Moderate",
-  "ragCitations": [
-    {
-      "source": "Bharat Pashudhan (NDLM)",
-      "title": "National Advisory on Lumpy Skin Disease Management",
-      "section": "Section 4.2: Field Triage and Herbal Protocols",
-      "relevanceScore": 0.94,
-      "guidelineSnippet": "Isolate affected cattle immediately. Apply neem and turmeric herbal paste. Administer antipyretics and broad-spectrum antibiotics to prevent secondary bacterial infection."
-    }
-  ],
-  "immediateRemedies": [
-    "Strict isolation in a dry shaded shed away from herd.",
-    "Topical paste of Turmeric (Curcuma longa) and Neem oil twice daily.",
-    "Oral hydration with Jaggery, cumin and electrolyte water."
-  ],
-  "recommendedVeterinaryActions": [
-    "Veterinary Officer validation within 24h for NDLM registry.",
-    "Injectable Meloxicam + Paracetamol for fever control.",
-    "Ring vaccination of asymptomatic herd in 5km radius with Goat Pox Vaccine."
-  ],
-  "biosecurityProtocol": [
-    "Vector control with fly and tick repellent sprays.",
-    "Disinfect shed floor with 2% Sodium Carbonate solution."
-  ]
-}`;
+3. COMPREHENSIVE OUTPUT REQUIREMENTS:
+   Always output a complete, medically rigorous JSON object:
+   - "isNonLivingObject": false
+   - "isDiseased": true (false only if completely healthy)
+   - "diseaseIdentified": "<Precise canonical disease name, e.g. Lumpy Skin Disease (Capripoxvirus) / Foot and Mouth Disease (FMD) / Acute Clinical Bovine Mastitis / Healthy (No Disease Detected)>"
+   - "diseaseCommonName": "<Vernacular name in Hindi/local language, e.g. गांठदार त्वचा रोग (LSD) / खुरपका-मुंहपका (FMD) / थनैला रोग (Mastitis) / स्वस्थ पशु>"
+   - "diseaseStatus": "<Active Pathological Infection | Critical Contagious Outbreak | Moderate Clinical Condition | Mild Cutaneous Condition | Healthy / No Active Pathology>"
+   - "diseaseSummaryStatement": "<2-3 detailed sentences clearly stating the diagnosed disease, the specific physical or visual evidence observed, severity, and urgency of intervention.>"
+   - "symptomsObserved": ["Specific symptom 1", "Specific symptom 2", "Specific symptom 3", "Specific symptom 4"]
+   - "primaryDiagnosis": "<Formal clinical diagnostic title with stage/grade, e.g. Suspected Lumpy Skin Disease (LSD) - Clinical Stage II>"
+   - "predictedBreed": "<Identified breed, e.g. Gir (Bos indicus) / Sahiwal / Murrah Buffalo / HF Crossbred>"
+   - "breedConfidence": <Number between 80.0 and 99.0>
+   - "detectedSpecies": "${species}"
+   - "pregnancyStatus": "${pregnancyStatus || 'Non-Pregnant (Open)'}"
+   - "lactationStatus": "${lactationStatus || 'Mid Lactation'}"
+   - "milkYieldImpact": "<Detailed description of milk yield loss percentage and lactation considerations>"
+   - "reproductiveAndLactationAlerts": {
+       "pregnancyRiskNotes": "<Gestation risk precautions and fetal safety guidance>",
+       "lactationImpact": "<Lactation impact description and mastitis risk assessment>",
+       "drugContraindications": ["<Contraindicated drug 1 e.g. Corticosteroids in pregnancy>", "<Milk withdrawal guideline>"],
+       "nutritionalRecommendation": "<Nutritional ration, mineral mixture, and high-energy gruel guidance>"
+     }
+   - "coatCondition": "<Dull / Nodular / Crusted / Alopecic / Glossy & Healthy>"
+   - "postureAssessment": {
+       "spineCurvature": "<Normal Straight | Kyphosis (Hunched) | Lordosis>",
+       "headCarriage": "<Alert & Elevated | Depressed / Drooping | S-Curved>",
+       "weightBearing": "<Equal on all 4 limbs | Non-weight bearing on limb | Reluctant to move>",
+       "gaitConfidence": <Number between 85.0 and 98.0>
+     }
+   - "bodyConditionScore": <Number between 1.0 and 5.0, e.g. 2.9>
+   - "conformationalMetrics": [
+       {"metric": "Spine Alignment Index", "score": <Number>, "benchmark": "85-100 Normal", "status": "<Optimal | Sub-optimal | Abnormal>", "details": "<Clinical detail>"},
+       {"metric": "Conformational Balance", "score": <Number>, "benchmark": "85-100 Ideal", "status": "<Optimal | Sub-optimal | Abnormal>", "details": "<Clinical detail>"}
+     ]
+   - "lesions": [
+       {
+         "id": "les-01",
+         "label": "<Lesion label, e.g. Cutaneous Nodules / Udder Inflammation / Interdigital Erosion>",
+         "confidence": <Number between 80.0 and 98.0>,
+         "severity": "<Mild | Moderate | Severe | Critical>",
+         "boundingBox": {"ymin": <0-100>, "xmin": <0-100>, "ymax": <0-100>, "xmax": <0-100>},
+         "anatomicalLocation": "<Lateral Flank / Neck / Udder / Mouth / Hoof / Eye>",
+         "clinicalDescription": "<Detailed description of lesion appearance and pathology>"
+       }
+     ]
+   - "differentialDiagnoses": [
+       {
+         "disease": "<Disease name>",
+         "probability": <Percentage>,
+         "keyIndications": ["<Indicator 1>", "<Indicator 2>"],
+         "sourceDataset": "Bharat Pashudhan & ICAR-IVRI"
+       }
+     ]
+   - "severityGrade": "<Mild | Moderate | Severe | Emergency Quarantine | None>"
+   - "ragCitations": [
+       {
+         "source": "Bharat Pashudhan (NDLM)",
+         "title": "<Official standard operating procedure title>",
+         "section": "<Section reference>",
+         "relevanceScore": 0.95,
+         "guidelineSnippet": "<Actionable protocol guideline snippet>"
+       }
+     ]
+   - "immediateRemedies": [
+       "<Immediate farmer first-aid remedy 1 (e.g. herbal/ethnoveterinary formulation with ingredients)>",
+       "<Immediate farmer first-aid remedy 2>",
+       "<Immediate farmer first-aid remedy 3>"
+     ]
+   - "recommendedVeterinaryActions": [
+       "<Veterinary clinical action 1 (prescription, dosage, vet escalation)>",
+       "<Veterinary clinical action 2>",
+       "<Veterinary clinical action 3>"
+     ]
+   - "biosecurityProtocol": [
+       "<Biosecurity measure 1 (isolation distance, vector control)>",
+       "<Biosecurity measure 2 (shed disinfection)>"
+     ]
+`;
 
           const parts: any[] = [];
           if (imagePart) {
@@ -340,12 +309,11 @@ Return strictly a JSON object with this format:
           }
           parts.push({ text: prompt });
 
-          // Multi-model tier prioritizing responsive Flash models with graceful fallback for high demand (503)
+          // Primary model is gemini-3.1-flash-lite for highest speed and multimodal reliability
           const candidateModels = [
             'gemini-3.1-flash-lite',
-            'gemini-3.8-flash',
-            'gemini-3.7-flash',
             'gemini-flash-latest',
+            'gemini-3.8-flash',
           ];
 
           for (const modelName of candidateModels) {
@@ -360,13 +328,12 @@ Return strictly a JSON object with this format:
                   contents: { parts },
                   config: {
                     responseMimeType: 'application/json',
-                    temperature: 0.1,
+                    temperature: 0.15,
                   },
                 });
 
                 if (response.text) {
                   let cleaned = response.text.trim();
-                  // Strip markdown code fences if present
                   if (cleaned.startsWith('```json')) {
                     cleaned = cleaned.replace(/^```json\s*/, '').replace(/\s*```$/, '');
                   } else if (cleaned.startsWith('```')) {
@@ -374,17 +341,15 @@ Return strictly a JSON object with this format:
                   }
                   analysisResult = JSON.parse(cleaned);
                   if (analysisResult) {
-                    break; // Successfully generated and parsed
+                    break;
                   }
                 }
               } catch (modelErr: any) {
                 const errMsg = modelErr?.message || String(modelErr);
                 const isHighDemand = errMsg.includes('503') || errMsg.includes('high demand') || errMsg.includes('429') || errMsg.includes('quota');
                 if (attempts < maxAttempts && isHighDemand) {
-                  // Exponential backoff for temporary load spikes
-                  await new Promise((resolve) => setTimeout(resolve, 400 * attempts));
+                  await new Promise((resolve) => setTimeout(resolve, 350 * attempts));
                 } else {
-                  // Move to next candidate model
                   break;
                 }
               }
@@ -397,41 +362,25 @@ Return strictly a JSON object with this format:
         }
       }
 
-      // Check both explicit isNonLivingObject flag and heuristic keywords in detected fields
-      const detectedName = String(analysisResult?.detectedObject || '').toLowerCase();
-      const breedName = String(analysisResult?.predictedBreed || '').toLowerCase();
-      const primaryDiag = String(analysisResult?.primaryDiagnosis || '').toLowerCase();
-      const combinedStrings = `${detectedName} ${breedName} ${primaryDiag}`;
-      const hasNonLivingKeywords = /object|inanimate|non-living|furniture|chair|table|desk|bottle|cup|mug|laptop|phone|smartphone|computer|keyboard|mouse|human|person|wall|floor|ceiling|headphones|glass|pen|paper|cloth/i.test(
-        combinedStrings
-      );
-
-      // If non-living object was detected by the vision model or heuristic, reject immediately
-      if (analysisResult?.isNonLivingObject || hasNonLivingKeywords) {
+      // Check if the AI vision model explicitly identified an inanimate non-living object
+      if (
+        analysisResult?.isNonLivingObject === true &&
+        !analysisResult?.diseaseIdentified &&
+        !analysisResult?.primaryDiagnosis?.toLowerCase().includes('livestock')
+      ) {
         return res.status(422).json({
           error: 'NON LIVING OBJECT DETECTED',
-          message: 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY',
+          message: analysisResult?.rejectionMessage || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY',
           isNonLivingObject: true,
           rejectionReason: 'NON LIVING OBJECT DETECTED',
-          rejectionMessage: 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY',
-          detectedObject: analysisResult?.detectedObject || (hasNonLivingKeywords ? analysisResult?.detectedObject || 'Inanimate Item' : 'Inanimate Object')
+          rejectionMessage: analysisResult?.rejectionMessage || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY',
+          detectedObject: analysisResult?.detectedObject || 'Inanimate Item',
         });
       }
 
-      // Fallback domain logic: STRICT ENFORCEMENT
-      // If this was a LIVE CAMERA scan or USER PHOTO UPLOAD (NOT a certified preset),
-      // and vision AI could not confirm a living livestock animal, WE MUST REJECT IT!
+      // If Gemini was temporarily unreachable or had a high-demand spike,
+      // activate the comprehensive ICAR-IVRI Clinical Diagnostic Expert Engine
       if (!analysisResult) {
-        if (!isPreset && scanMode !== 'preset') {
-          return res.status(422).json({
-            error: 'NON LIVING OBJECT DETECTED',
-            message: 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY',
-            isNonLivingObject: true,
-            rejectionReason: 'NON LIVING OBJECT DETECTED',
-            rejectionMessage: 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY',
-            detectedObject: 'Inanimate Object or Unrecognized Subject'
-          });
-        }
         const symptomsLower = (symptoms || '').toLowerCase();
         const speciesLower = (species || '').toLowerCase();
         const presetLower = (presetBreedHint || '').toLowerCase();

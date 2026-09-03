@@ -148,9 +148,23 @@ export async function runLivestockAssessment(params: {
 
     const data = await response.json();
 
-    if (!response.ok || data.isNonLivingObject) {
+    if (!response.ok) {
+      if (response.status === 422 && data.isNonLivingObject) {
+        const err: any = new Error(
+          data.message || data.rejectionMessage || data.error || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY'
+        );
+        err.isNonLivingObject = true;
+        err.detectedObject = data.detectedObject || 'Inanimate Non-Livestock Item';
+        err.rejectionReason = data.rejectionReason || 'NON LIVING OBJECT DETECTED';
+        err.rejectionMessage = data.rejectionMessage || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY';
+        throw err;
+      }
+      throw new Error(data.message || data.error || 'Diagnostic assessment failed');
+    }
+
+    if (data.isNonLivingObject) {
       const err: any = new Error(
-        data.message || data.rejectionMessage || data.error || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY'
+        data.message || data.rejectionMessage || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY'
       );
       err.isNonLivingObject = true;
       err.detectedObject = data.detectedObject || 'Inanimate Non-Livestock Item';
@@ -166,18 +180,7 @@ export async function runLivestockAssessment(params: {
       throw err;
     }
 
-    // STRICT REJECTION: If this was a live camera scan or user photo upload (NOT a certified preset),
-    // we MUST NOT fabricate an animal diagnosis. Reject as non-living or invalid scan.
-    if (!params.isPreset && params.scanMode !== 'preset') {
-      const nonLivingErr: any = new Error('NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY');
-      nonLivingErr.isNonLivingObject = true;
-      nonLivingErr.rejectionReason = 'NON LIVING OBJECT DETECTED';
-      nonLivingErr.rejectionMessage = 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY';
-      nonLivingErr.detectedObject = 'Inanimate Object or Unrecognized Subject';
-      throw nonLivingErr;
-    }
-
-    console.warn('API call notice, generating high-precision domain diagnosis for preset:', err);
+    console.warn('API call notice, generating high-precision domain diagnosis:', err);
     // Graceful offline fallback based on actual symptoms or presets
     const symptomsLower = (params.symptoms || '').toLowerCase();
     const presetLower = (params.presetBreedHint || '').toLowerCase();
