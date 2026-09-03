@@ -20,13 +20,24 @@ import {
   Maximize2,
   Check,
   Radio,
-  Zap
+  Zap,
+  Loader2,
+  Navigation,
+  Edit3,
+  LocateFixed,
+  Compass
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SAMPLE_CATTLE_PRESETS } from '../../data/mockLivestockData';
 import { DiagnosticAssessment, SupportedLanguage, PregnancyStatus, LactationStatus } from '../../types';
 import { runLivestockAssessment } from '../../services/apiService';
 import { VoiceSymptomInput } from './VoiceSymptomInput';
+import { 
+  acquireLiveScannedLocation, 
+  getStoredLiveLocation, 
+  reverseGeocodeCoordinates, 
+  GeocodedLocation 
+} from '../../utils/geolocation';
 
 interface CameraCaptureModalProps {
   isOpen: boolean;
@@ -67,37 +78,87 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
   const [lightingScore] = useState(92);
   const [showOverlays, setShowOverlays] = useState(true);
 
-  // GPS Metadata
-  const [gpsData, setGpsData] = useState({
-    lat: 21.5222,
-    lng: 70.4579,
-    district: 'Junagadh',
-    state: 'Gujarat',
-    accuracy: 4.2
+  // GPS & Live Field Location State
+  const [liveUserLocation, setLiveUserLocation] = useState<GeocodedLocation | null>(() => getStoredLiveLocation());
+  const [isAcquiringGps, setIsAcquiringGps] = useState(false);
+  const [gpsError, setGpsError] = useState<string | null>(null);
+  const [useLiveLocation, setUseLiveLocation] = useState(true);
+  const [isEditingCustomLocation, setIsEditingCustomLocation] = useState(false);
+  const [customDistrictInput, setCustomDistrictInput] = useState('');
+  const [customStateInput, setCustomStateInput] = useState('');
+
+  // GPS Metadata for Current Scan
+  const [gpsData, setGpsData] = useState<{
+    lat: number;
+    lng: number;
+    district: string;
+    state: string;
+    country?: string;
+    locationName?: string;
+    accuracy: number;
+    isLiveLocation: boolean;
+  }>(() => {
+    const cached = getStoredLiveLocation();
+    if (cached) {
+      return {
+        lat: cached.lat,
+        lng: cached.lng,
+        district: cached.district,
+        state: cached.state,
+        country: cached.country,
+        locationName: cached.locationName,
+        accuracy: cached.accuracy || 4.2,
+        isLiveLocation: true,
+      };
+    }
+    return {
+      lat: 21.5222,
+      lng: 70.4579,
+      district: 'Junagadh',
+      state: 'Gujarat',
+      country: 'India',
+      locationName: 'Junagadh, Gujarat',
+      accuracy: 4.2,
+      isLiveLocation: false,
+    };
   });
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Get browser GPS if available
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setGpsData((prev) => ({
-            ...prev,
-            lat: Number(pos.coords.latitude.toFixed(4)),
-            lng: Number(pos.coords.longitude.toFixed(4)),
-            accuracy: Number(pos.coords.accuracy.toFixed(1)) || 5.0,
-          }));
-        },
-        (err) => {
-          console.warn('Geolocation permission not granted, using regional default:', err.message);
-        }
-      );
+  // Actively acquire live scanned location and reverse geocode
+  const handleDetectLiveGps = async () => {
+    setIsAcquiringGps(true);
+    setGpsError(null);
+    try {
+      const loc = await acquireLiveScannedLocation();
+      setLiveUserLocation(loc);
+      setGpsData({
+        lat: loc.lat,
+        lng: loc.lng,
+        district: loc.district,
+        state: loc.state,
+        country: loc.country,
+        locationName: loc.locationName,
+        accuracy: loc.accuracy || 4.2,
+        isLiveLocation: true,
+      });
+      setUseLiveLocation(true);
+    } catch (err: any) {
+      console.warn('Live GPS acquisition notice:', err);
+      setGpsError(err?.message || 'Could not acquire precise GPS signal. You can enter location manually.');
+    } finally {
+      setIsAcquiringGps(false);
     }
-  }, []);
+  };
+
+  // Acquire live field location when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      handleDetectLiveGps();
+    }
+  }, [isOpen]);
 
   // Handle WebCam start/stop
   useEffect(() => {
@@ -186,13 +247,20 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
     if (preset.pregnancyStatus) setPregnancyStatus(preset.pregnancyStatus as PregnancyStatus);
     if (preset.lactationStatus) setLactationStatus(preset.lactationStatus as LactationStatus);
     if (preset.dailyMilkYieldLiters) setDailyMilkYield(preset.dailyMilkYieldLiters);
-    setGpsData((prev) => ({
-      ...prev,
-      lat: preset.location.lat,
-      lng: preset.location.lng,
-      district: preset.location.district,
-      state: preset.location.state,
-    }));
+    
+    // If user prefers using their live device location for the scan, preserve live location
+    if (!useLiveLocation || !liveUserLocation) {
+      setGpsData({
+        lat: preset.location.lat,
+        lng: preset.location.lng,
+        district: preset.location.district,
+        state: preset.location.state,
+        country: 'India',
+        locationName: `${preset.location.district}, ${preset.location.state}`,
+        accuracy: 4.2,
+        isLiveLocation: false,
+      });
+    }
   };
 
   const handleExecuteScan = async () => {
@@ -264,6 +332,9 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
         longitude: gpsData.lng,
         district: gpsData.district,
         state: gpsData.state,
+        locationName: gpsData.locationName,
+        country: gpsData.country,
+        isLiveLocation: gpsData.isLiveLocation,
         language: language,
         presetBreedHint: presetHint,
         isPreset: isPreset,
@@ -533,8 +604,10 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
                     <span>{dailyMilkYield}L/d</span>
                   </div>
                   <div className="flex items-center space-x-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-rose-400" />
-                    <span>{gpsData.district}</span>
+                    <MapPin className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                    <span className="truncate max-w-[130px]" title={gpsData.locationName || `${gpsData.district}, ${gpsData.state}`}>
+                      {gpsData.locationName || gpsData.district}
+                    </span>
                   </div>
                 </div>
 
@@ -750,12 +823,128 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
           />
 
           {/* Geolocation Tagging Status */}
-          <div className="flex items-center justify-between px-3.5 py-2 bg-slate-100 rounded-xl border border-slate-200 text-[11px] text-slate-600">
-            <div className="flex items-center space-x-2">
-              <MapPin className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Geo-Tag: <strong className="text-slate-800">{gpsData.district}, {gpsData.state}</strong> ({gpsData.lat}, {gpsData.lng})</span>
+          <div className="p-3 bg-slate-100 rounded-xl border border-slate-200 text-xs text-slate-700 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center space-x-2">
+                <div className="w-6 h-6 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-700">
+                  <MapPin className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-semibold text-slate-800">Scanned Field Location:</span>
+                    <strong className="text-emerald-900 font-bold">
+                      {gpsData.locationName || `${gpsData.district}, ${gpsData.state}`}
+                    </strong>
+                    {gpsData.isLiveLocation ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Live Scanned Location
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-600 bg-slate-200 px-2 py-0.5 rounded-full">
+                        Preset Geotag
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 font-mono">
+                    Coords: {gpsData.lat.toFixed(4)}°N, {gpsData.lng.toFixed(4)}°E • Accuracy: ±{gpsData.accuracy}m
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleDetectLiveGps}
+                  disabled={isAcquiringGps}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+                  title="Detect and pinpoint device GPS location"
+                >
+                  {isAcquiringGps ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <span>Fixing GPS...</span>
+                    </>
+                  ) : (
+                    <>
+                      <LocateFixed className="w-3 h-3" />
+                      <span>{gpsData.isLiveLocation ? 'Refresh GPS' : 'Use Scanned GPS'}</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditingCustomLocation(!isEditingCustomLocation);
+                    setCustomDistrictInput(gpsData.district);
+                    setCustomStateInput(gpsData.state);
+                  }}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 transition-colors cursor-pointer"
+                  title="Manually enter farm village or district"
+                >
+                  <Edit3 className="w-3 h-3 text-slate-500" />
+                  <span>{isEditingCustomLocation ? 'Close' : 'Edit'}</span>
+                </button>
+              </div>
             </div>
-            <span className="text-emerald-700 font-mono font-bold">Accuracy ±{gpsData.accuracy}m</span>
+
+            {/* Inline Custom Location Editor */}
+            {isEditingCustomLocation && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="pt-2 border-t border-slate-200 flex flex-wrap items-center gap-2"
+              >
+                <div className="flex-1 min-w-[140px]">
+                  <input
+                    type="text"
+                    value={customDistrictInput}
+                    onChange={(e) => setCustomDistrictInput(e.target.value)}
+                    placeholder="District / Village / Tehsil"
+                    className="w-full text-xs px-2.5 py-1 rounded-md border border-slate-300 bg-white focus:outline-emerald-500"
+                  />
+                </div>
+                <div className="flex-1 min-w-[140px]">
+                  <input
+                    type="text"
+                    value={customStateInput}
+                    onChange={(e) => setCustomStateInput(e.target.value)}
+                    placeholder="State (e.g., Gujarat, Punjab)"
+                    className="w-full text-xs px-2.5 py-1 rounded-md border border-slate-300 bg-white focus:outline-emerald-500"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (customDistrictInput.trim()) {
+                      const updatedName = customStateInput.trim() 
+                        ? `${customDistrictInput.trim()}, ${customStateInput.trim()}`
+                        : customDistrictInput.trim();
+                      setGpsData((prev) => ({
+                        ...prev,
+                        district: customDistrictInput.trim(),
+                        state: customStateInput.trim() || prev.state,
+                        locationName: updatedName,
+                        isLiveLocation: true,
+                      }));
+                      setIsEditingCustomLocation(false);
+                    }
+                  }}
+                  className="px-3 py-1 bg-emerald-600 text-white rounded-md text-xs font-semibold hover:bg-emerald-700 cursor-pointer"
+                >
+                  Save Location
+                </button>
+              </motion.div>
+            )}
+
+            {gpsError && (
+              <p className="text-[10px] text-amber-700 bg-amber-50 p-1.5 rounded-lg border border-amber-200">
+                {gpsError}
+              </p>
+            )}
           </div>
 
         </div>
@@ -783,7 +972,7 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
                       </span>
                     </h3>
                     <p className="text-[11px] text-slate-400 font-mono">
-                      Target: <strong className="text-emerald-300">{species}</strong> • District: {gpsData.district}
+                      Target: <strong className="text-emerald-300">{species}</strong> • Location: <span className="text-white font-medium">{gpsData.locationName || `${gpsData.district}, ${gpsData.state}`}</span>
                     </p>
                   </div>
                 </div>

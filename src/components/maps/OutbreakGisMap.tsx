@@ -9,7 +9,13 @@ import {
   useMap,
   useMapsLibrary
 } from '@vis.gl/react-google-maps';
-import { isValidGoogleMapsKey } from '../../utils/googleMaps';
+import {
+  isValidGoogleMapsKey,
+  getStoredGoogleMapsApiKey,
+  setStoredGoogleMapsApiKey,
+  GOOGLE_MAPS_ATTRIBUTION_ID,
+  GOOGLE_MAPS_DEMO_KEY_URL
+} from '../../utils/googleMaps';
 import {
   Radio,
   MapPin,
@@ -131,9 +137,7 @@ export const OutbreakGisMap: React.FC<OutbreakGisMapProps> = ({
   onSelectAssessment,
   onIssueQuarantine
 }) => {
-  // Environment API key
-  const envApiKey = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string) || '';
-  const [apiKey, setApiKey] = useState<string>(envApiKey);
+  const [apiKey, setApiKey] = useState<string>(() => getStoredGoogleMapsApiKey());
   const [customKeyInput, setCustomKeyInput] = useState<string>('');
   const [showKeyModal, setShowKeyModal] = useState<boolean>(false);
   const [hasAuthError, setHasAuthError] = useState<boolean>(false);
@@ -243,7 +247,9 @@ export const OutbreakGisMap: React.FC<OutbreakGisMapProps> = ({
   const handleSaveCustomKey = (e: React.FormEvent) => {
     e.preventDefault();
     if (customKeyInput.trim()) {
-      setApiKey(customKeyInput.trim());
+      const trimmed = customKeyInput.trim();
+      setStoredGoogleMapsApiKey(trimmed);
+      setApiKey(trimmed);
       setHasAuthError(false);
       setShowKeyModal(false);
       setViewMode('google_maps');

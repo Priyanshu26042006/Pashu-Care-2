@@ -27,7 +27,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { AnimalProfile, SupportedLanguage, CattleFormalReport } from '../../types';
 import { APIProvider, Map, AdvancedMarker, Pin } from '@vis.gl/react-google-maps';
-import { isValidGoogleMapsKey } from '../../utils/googleMaps';
+import { isValidGoogleMapsKey, getStoredGoogleMapsApiKey } from '../../utils/googleMaps';
 
 interface AnimalDetailModalProps {
   animal: AnimalProfile | null;
@@ -63,7 +63,7 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
 
   if (!animal) return null;
 
-  const envKey = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string) || '';
+  const envKey = getStoredGoogleMapsApiKey();
   const hasValidKey = isValidGoogleMapsKey(envKey) && !mapAuthFailed;
 
   return (
@@ -297,8 +297,8 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
                     <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-emerald-500/20 border-2 border-emerald-400 text-emerald-300 shadow-lg shadow-emerald-500/30 mb-1.5">
                       <MapPin className="w-5 h-5" />
                     </div>
-                    <p className="text-xs font-bold text-slate-100">
-                      {animal.district}, {animal.state}
+                    <p className="text-xs font-bold text-slate-100" title={animal.gpsLocation.locationName || `${animal.district}, ${animal.state}`}>
+                      {animal.gpsLocation.locationName || `${animal.district}, ${animal.state}`}
                     </p>
                     <p className="text-[11px] font-mono text-emerald-400">
                       {animal.gpsLocation.lat.toFixed(4)}°N, {animal.gpsLocation.lng.toFixed(4)}°E
