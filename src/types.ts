@@ -33,8 +33,13 @@ export interface AnimalProfile {
   gpsLocation: {
     lat: number;
     lng: number;
+    district?: string;
+    state?: string;
+    locationName?: string;
+    country?: string;
     accuracyMeters?: number;
     timestamp: string;
+    isLiveLocation?: boolean;
   };
   currentStatus: 'Healthy' | 'Observation' | 'Moderate Concern' | 'Critical / Flagged';
   lastAssessmentDate: string;
@@ -86,6 +91,10 @@ export interface CattleFormalReport {
     state: string;
     lat: number;
     lng: number;
+    locationName?: string;
+    country?: string;
+    address?: string;
+    isLiveLocation?: boolean;
   };
   ndlmSyncStatus: 'Synchronized & Verified' | 'Pending Field Verification';
   officialRemarks?: string;
@@ -171,6 +180,12 @@ export interface DiagnosticAssessment {
     lng: number;
     district: string;
     state: string;
+    locationName?: string;
+    country?: string;
+    address?: string;
+    altitudeMeters?: number;
+    accuracy?: number;
+    isLiveLocation?: boolean;
   };
   audioNarrativeUrl?: string;
   audioLanguage?: string;

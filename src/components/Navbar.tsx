@@ -13,9 +13,11 @@ import {
   ChevronDown,
   Shield,
   Layers,
-  ArrowLeftRight
+  ArrowLeftRight,
+  Download
 } from 'lucide-react';
 import { AuthUser, SupportedLanguage, UserRole } from '../types';
+import { SUPPORTED_LANGUAGES } from '../utils/languages';
 
 interface NavbarProps {
   activeTab: 'farmer' | 'officer';
@@ -29,31 +31,7 @@ interface NavbarProps {
   onSwitchUserPrompt: () => void;
 }
 
-const LANGUAGES: { code: SupportedLanguage; label: string; native: string; region: string }[] = [
-  { code: 'hi', label: 'Hindi', native: 'हिन्दी', region: 'North / Central' },
-  { code: 'en', label: 'English', native: 'English', region: 'National' },
-  { code: 'bn', label: 'Bengali', native: 'বাংলা', region: 'West Bengal / Tripura' },
-  { code: 'mr', label: 'Marathi', native: 'मराठी', region: 'Maharashtra' },
-  { code: 'te', label: 'Telugu', native: 'తెలుగు', region: 'Andhra Pradesh / Telangana' },
-  { code: 'ta', label: 'Tamil', native: 'தமிழ்', region: 'Tamil Nadu' },
-  { code: 'gu', label: 'Gujarati', native: 'ગુજરાતી', region: 'Gujarat' },
-  { code: 'ur', label: 'Urdu', native: 'اُردُو', region: 'National / Telangana / J&K' },
-  { code: 'kn', label: 'Kannada', native: 'ಕನ್ನಡ', region: 'Karnataka' },
-  { code: 'or', label: 'Odia', native: 'ଓଡ଼ିଆ', region: 'Odisha' },
-  { code: 'ml', label: 'Malayalam', native: 'മലയാളം', region: 'Kerala' },
-  { code: 'pa', label: 'Punjabi', native: 'ਪੰਜਾਬੀ', region: 'Punjab' },
-  { code: 'as', label: 'Assamese', native: 'অসমীয়া', region: 'Assam' },
-  { code: 'mai', label: 'Maithili', native: 'मैथिली', region: 'Bihar / Jharkhand' },
-  { code: 'sat', label: 'Santali', native: 'ᱥᱟᱱᱛᱟᱲᱤ', region: 'Jharkhand / Odisha / WB' },
-  { code: 'ks', label: 'Kashmiri', native: 'کٲشُر', region: 'Jammu & Kashmir' },
-  { code: 'ne', label: 'Nepali', native: 'नेपाली', region: 'Sikkim / West Bengal' },
-  { code: 'kok', label: 'Konkani', native: 'कोंकणी', region: 'Goa / Maharashtra / Karnataka' },
-  { code: 'sd', label: 'Sindhi', native: 'سنڌي / सिन्धी', region: 'Gujarat / Maharashtra / Rajasthan' },
-  { code: 'doi', label: 'Dogri', native: 'डोगरी', region: 'Jammu & Kashmir / HP' },
-  { code: 'mni', label: 'Manipuri', native: 'ꯃꯤꯇែꯢꯂꯣꯟ', region: 'Manipur' },
-  { code: 'brx', label: 'Bodo', native: 'बड़ो', region: 'Assam / Bodoland' },
-  { code: 'sa', label: 'Sanskrit', native: 'संस्कृतम्', region: 'Classical / All-India' },
-];
+const LANGUAGES = SUPPORTED_LANGUAGES;
 
 export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
@@ -281,6 +259,21 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                     {/* Switch / Logout Actions */}
                     <div className="space-y-1 pt-1 border-t border-slate-100">
+                      <a
+                        href="/gausehat-ai-source.zip"
+                        download="gausehat-ai-source.zip"
+                        className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-emerald-50 text-emerald-800 font-medium flex items-center justify-between cursor-pointer"
+                        title="Download Complete Source Code ZIP archive"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <Download className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Download Project ZIP</span>
+                        </span>
+                        <span className="text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-mono font-bold">
+                          ZIP
+                        </span>
+                      </a>
+
                       <button
                         onClick={() => {
                           setIsProfileMenuOpen(false);
@@ -313,6 +306,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                 )}
               </div>
             )}
+
+            {/* Direct Project ZIP Download Action */}
+            <a
+              href="/gausehat-ai-source.zip"
+              download="gausehat-ai-source.zip"
+              title="Download Source Code ZIP Archive"
+              className="hidden sm:inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-semibold transition-colors shadow-2xs"
+            >
+              <Download className="w-3.5 h-3.5 text-emerald-600" />
+              <span className="hidden md:inline">Download ZIP</span>
+            </a>
 
             {/* Emergency Helpline */}
             <a

@@ -18,9 +18,13 @@ import {
   Droplets,
   Baby,
   Milk,
-  Droplet
+  Droplet,
+  LayoutGrid,
+  Map as MapIcon
 } from 'lucide-react';
 import { AnimalProfile, DiagnosticAssessment, SupportedLanguage } from '../../types';
+import { MOCK_OUTBREAK_ALERTS } from '../../data/mockLivestockData';
+import { FarmerHerdMap } from './FarmerHerdMap';
 
 interface FarmerDashboardProps {
   animals: AnimalProfile[];
@@ -39,6 +43,7 @@ export const FarmerDashboard: React.FC<FarmerDashboardProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSpeciesFilter, setSelectedSpeciesFilter] = useState<'All' | 'Cattle' | 'Buffalo'>('All');
+  const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
 
   // Stats calculation
   const totalCount = animals.length;
@@ -96,6 +101,14 @@ export const FarmerDashboard: React.FC<FarmerDashboardProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setViewMode(viewMode === 'map' ? 'grid' : 'map')}
+              className="relative flex items-center space-x-2 bg-emerald-800/60 hover:bg-emerald-700/80 active:bg-emerald-900 text-white font-bold px-4 py-3 rounded-[14px] text-xs sm:text-sm border border-emerald-500/40 transition-all cursor-pointer min-h-[44px]"
+            >
+              <MapPin className="w-4 h-4 text-emerald-300" />
+              <span>{viewMode === 'map' ? 'Switch to Herd Cards' : 'Open Herd Google Map'}</span>
+            </button>
+
             <div className="relative group p-[2px] rounded-2xl ai-glow-border shadow-lg hover:shadow-emerald-400/30 transition-all">
               <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-300 rounded-2xl blur-xs opacity-70 group-hover:opacity-100 transition duration-500 pointer-events-none"></div>
               <button
@@ -184,11 +197,11 @@ export const FarmerDashboard: React.FC<FarmerDashboardProps> = ({
       {/* Livestock Roster Section */}
       <div className="space-y-4">
         
-        {/* Controls Bar: Search & Filter */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
+        {/* Controls Bar: Search & Filter & View Mode Toggle */}
+        <div className="flex flex-col md:flex-row items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
           
           {/* Search Box */}
-          <div className="relative w-full sm:w-80">
+          <div className="relative w-full md:w-80">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
             <input
               type="text"
@@ -199,30 +212,68 @@ export const FarmerDashboard: React.FC<FarmerDashboardProps> = ({
             />
           </div>
 
-          {/* Species Filter Tabs */}
-          <div className="flex items-center space-x-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-semibold self-stretch sm:self-auto justify-center">
-            {(['All', 'Cattle', 'Buffalo'] as const).map((spec) => (
+          <div className="flex flex-wrap items-center justify-between w-full md:w-auto gap-2">
+            {/* Species Filter Tabs */}
+            <div className="flex items-center space-x-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-semibold">
+              {(['All', 'Cattle', 'Buffalo'] as const).map((spec) => (
+                <button
+                  key={spec}
+                  onClick={() => setSelectedSpeciesFilter(spec)}
+                  className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                    selectedSpeciesFilter === spec
+                      ? 'bg-white text-emerald-800 font-bold shadow-xs border border-slate-200/80'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {spec}
+                </button>
+              ))}
+            </div>
+
+            {/* View Mode Switcher: Grid vs Live Google Map */}
+            <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-semibold">
               <button
-                key={spec}
-                onClick={() => setSelectedSpeciesFilter(spec)}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                  selectedSpeciesFilter === spec
+                onClick={() => setViewMode('grid')}
+                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
+                  viewMode === 'grid'
                     ? 'bg-white text-emerald-800 font-bold shadow-xs border border-slate-200/80'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                {spec}
+                <LayoutGrid className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Roster Grid</span>
               </button>
-            ))}
+
+              <button
+                onClick={() => setViewMode('map')}
+                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
+                  viewMode === 'map'
+                    ? 'bg-emerald-600 text-white font-bold shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <MapPin className="w-3.5 h-3.5" />
+                <span>Google Maps</span>
+              </button>
+            </div>
           </div>
 
         </div>
 
-        {/* Animal Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredAnimals.map((animal) => (
+        {/* View Content: Google Map OR Grid */}
+        {viewMode === 'map' ? (
+          <FarmerHerdMap
+            animals={filteredAnimals}
+            outbreaks={MOCK_OUTBREAK_ALERTS}
+            onSelectAnimal={onSelectAnimal}
+            onOpenScan={onOpenScan}
+            language={language}
+          />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {filteredAnimals.map((animal, idx) => (
             <div
-              key={animal.id}
+              key={`farmer-animal-${animal.id}-${idx}`}
               className="bg-white border border-slate-200 hover:border-emerald-500/60 rounded-2xl p-4 transition-all shadow-xs hover:shadow-md flex flex-col justify-between space-y-4 group"
             >
               <div className="flex space-x-4">
@@ -314,7 +365,8 @@ export const FarmerDashboard: React.FC<FarmerDashboardProps> = ({
 
             </div>
           ))}
-        </div>
+          </div>
+        )}
 
       </div>
 

@@ -3,6 +3,18 @@ import path from 'path';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
+import {
+  getAllAnimals,
+  upsertAnimal,
+  getAllAssessments,
+  insertAssessment,
+  addReportToAnimal,
+  saveImageToStorage,
+  getImageFromStorage,
+  seedInitialData,
+} from './src/db/livestock';
+import { getOrCreateUser, getUserByUid } from './src/db/users';
+import { INITIAL_ANIMAL_PROFILES, INITIAL_ASSESSMENTS, MOCK_OUTBREAK_ALERTS } from './src/data/mockLivestockData';
 
 dotenv.config();
 
@@ -36,6 +48,42 @@ async function startServer() {
     return genAI;
   }
 
+  // Reverse geocode in-memory cache and resolver
+  const reverseGeocodeCache = new Map<string, any>();
+  async function resolveReverseGeocode(lat: number, lng: number) {
+    const key = `${lat.toFixed(3)},${lng.toFixed(3)}`;
+    if (reverseGeocodeCache.has(key)) {
+      return reverseGeocodeCache.get(key);
+    }
+    try {
+      const response = await fetch(
+        `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`,
+        { signal: AbortSignal.timeout(4000) }
+      );
+      if (response.ok) {
+        const data: any = await response.json();
+        const city = data.locality || data.city || '';
+        const district = data.city || data.locality || data.principalSubdivision || 'Field District';
+        const state = data.principalSubdivision || '';
+        const country = data.countryName || '';
+        const parts = [city, district !== city ? district : '', state, country].filter(Boolean);
+        const locationName = Array.from(new Set(parts)).join(', ') || `${district}, ${state}`;
+        const result = { district, state, country, city, locationName };
+        reverseGeocodeCache.set(key, result);
+        return result;
+      }
+    } catch (e) {
+      console.warn('Server reverse geocode notice:', e);
+    }
+    return {
+      district: `Sector ${lat.toFixed(2)}°`,
+      state: 'Geotag Fixed',
+      country: '',
+      locationName: `${lat.toFixed(4)}°N, ${lng.toFixed(4)}°E`,
+      city: '',
+    };
+  }
+
   // Health check endpoint
   app.get('/api/health', (req, res) => {
     res.json({
@@ -44,6 +92,21 @@ async function startServer() {
       platform: 'Gausehat AI Core v2.4.0',
       timestamp: new Date().toISOString(),
     });
+  });
+
+  // Reverse Geocoding API endpoint
+  app.get('/api/reverse-geocode', async (req, res) => {
+    try {
+      const lat = parseFloat(req.query.lat as string);
+      const lng = parseFloat(req.query.lng as string);
+      if (isNaN(lat) || isNaN(lng)) {
+        return res.status(400).json({ error: 'Valid lat and lng query parameters are required.' });
+      }
+      const resolved = await resolveReverseGeocode(lat, lng);
+      res.json(resolved);
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Reverse geocoding failed' });
+    }
   });
 
   // Multi-modal Livestock Vision & Diagnostic Assessment Endpoint
@@ -58,8 +121,11 @@ async function startServer() {
         dailyMilkYieldLiters,
         latitude = 21.5222,
         longitude = 70.4579,
-        district = 'Junagadh',
-        state = 'Gujarat',
+        district,
+        state,
+        locationName,
+        country,
+        isLiveLocation = false,
         language = 'en',
         presetBreedHint,
         isPreset = false,
@@ -1411,18 +1477,49 @@ Return strictly a JSON object with this format:
             ? ['Clean muzzle with normal perspiration beads', 'Smooth, glossy hair coat without lesions', 'Erect and alert head carriage', 'Balanced four-limb weight bearing']
             : ['Observable physical cutaneous and posture abnormalities noted during vision scan'];
 
+      // Resolve accurate field scan location dynamically
+      const numLat = Number(latitude) || 21.5222;
+      const numLng = Number(longitude) || 70.4579;
+      let finalDistrict = district;
+      let finalState = state;
+      let finalCountry = country || '';
+      let finalLocationName = locationName;
+
+      // If coordinates are customized/live and district is missing or is preset default while coordinates differ from Junagadh
+      const isCustomCoord = Math.abs(numLat - 21.5222) > 0.01 || Math.abs(numLng - 70.4579) > 0.01;
+      if (!finalLocationName || !finalDistrict || (finalDistrict === 'Junagadh' && isCustomCoord)) {
+        try {
+          const resolved = await resolveReverseGeocode(numLat, numLng);
+          if (resolved) {
+            finalDistrict = resolved.district || finalDistrict || 'Field District';
+            finalState = resolved.state || finalState || '';
+            finalCountry = resolved.country || finalCountry;
+            finalLocationName = resolved.locationName || finalLocationName || `${finalDistrict}, ${finalState}`;
+          }
+        } catch (e) {
+          console.warn('Could not reverse geocode scan coordinates:', e);
+        }
+      }
+
+      finalDistrict = finalDistrict || (isCustomCoord ? `Sector ${numLat.toFixed(2)}°` : 'Junagadh');
+      finalState = finalState || (isCustomCoord ? 'Geotag Fixed' : 'Gujarat');
+      finalLocationName = finalLocationName || [finalDistrict, finalState, finalCountry].filter(Boolean).join(', ');
+
       // Append metadata
-      const assessmentId = `diag-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+      const assessmentId = `diag-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`;
       const completedAssessment = {
         id: assessmentId,
-        animalId: req.body.animalId || `anim-${Math.random().toString(36).substring(2, 8)}`,
+        animalId: req.body.animalId || `anim-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`,
         timestamp: new Date().toISOString(),
         imageUrl: image || 'https://images.unsplash.com/photo-1546445317-29f4545e9d53?auto=format&fit=crop&w=1000&q=80',
         gpsMetadata: {
-          lat: Number(latitude) || 21.5222,
-          lng: Number(longitude) || 70.4579,
-          district: district || 'Junagadh',
-          state: state || 'Gujarat',
+          lat: numLat,
+          lng: numLng,
+          district: finalDistrict,
+          state: finalState,
+          country: finalCountry,
+          locationName: finalLocationName,
+          isLiveLocation: Boolean(isLiveLocation || isCustomCoord),
         },
         audioLanguage: language,
         ...analysisResult,
@@ -1433,6 +1530,13 @@ Return strictly a JSON object with this format:
         diseaseSummaryStatement,
         symptomsObserved,
       };
+
+      // Persist completed assessment to Cloud SQL PostgreSQL database
+      try {
+        await insertAssessment(completedAssessment as any);
+      } catch (dbErr) {
+        console.warn('Notice persisting assessment to Cloud SQL:', dbErr);
+      }
 
       res.json(completedAssessment);
     } catch (error: any) {
@@ -1638,6 +1742,282 @@ Return strictly a valid JSON object with the following structure:
     }
   });
 
+  // Multi-Language Diagnostic Report Translation Endpoint
+  app.post('/api/translate-report', async (req, res) => {
+    try {
+      const { targetLanguage = 'hi', report } = req.body;
+
+      if (!report) {
+        return res.status(400).json({ error: 'Report data is required.' });
+      }
+
+      // If requested in English and report is already English, return clean fields
+      if (targetLanguage === 'en') {
+        return res.json({
+          targetLanguage: 'en',
+          translatedFields: {
+            diseaseIdentified: report.diseaseIdentified || report.primaryDiagnosis,
+            diseaseCommonName: report.diseaseCommonName || report.diseaseIdentified,
+            diseaseStatus: report.diseaseStatus || 'Active Clinical Pathology',
+            diseaseSummaryStatement: report.diseaseSummaryStatement || '',
+            symptomsObserved: report.symptomsObserved || [],
+            immediateRemedies: report.immediateRemedies || [],
+            recommendedVeterinaryActions: report.recommendedVeterinaryActions || [],
+            biosecurityProtocol: report.biosecurityProtocol || [],
+            coatCondition: report.coatCondition || '',
+            pregnancyRiskNotes: report.reproductiveAndLactationAlerts?.pregnancyRiskNotes || '',
+            lactationImpact: report.reproductiveAndLactationAlerts?.lactationImpact || '',
+            drugContraindications: report.reproductiveAndLactationAlerts?.drugContraindications || [],
+            nutritionalRecommendation: report.reproductiveAndLactationAlerts?.nutritionalRecommendation || '',
+          }
+        });
+      }
+
+      const languageNames: Record<string, string> = {
+        hi: 'Hindi (हिन्दी)',
+        bn: 'Bengali (বাংলা)',
+        mr: 'Marathi (मराठी)',
+        te: 'Telugu (తెలుగు)',
+        ta: 'Tamil (தமிழ்)',
+        gu: 'Gujarati (ગુજરાતી)',
+        ur: 'Urdu (اُردُو)',
+        kn: 'Kannada (ಕನ್ನಡ)',
+        or: 'Odia (ଓଡ଼ିଆ)',
+        ml: 'Malayalam (മലയാളം)',
+        pa: 'Punjabi (ਪੰਜਾਬੀ)',
+        as: 'Assamese (অসমীয়া)',
+        mai: 'Maithili (मैथिली)',
+        sat: 'Santali (ᱥᱟᱱᱛᱟᱲᱤ)',
+        ks: 'Kashmiri (کٲشُر)',
+        ne: 'Nepali (नेपाली)',
+        kok: 'Konkani (कोंकणी)',
+        sd: 'Sindhi (سنڌي / सिन्धी)',
+        doi: 'Dogri (डोगरी)',
+        mni: 'Manipuri (ꯃꯤꯇែꯢꯂꯣꯟ)',
+        brx: 'Bodo (बड़ो)',
+        sa: 'Sanskrit (संस्कृतम्)',
+        en: 'English',
+      };
+
+      const langLabel = languageNames[targetLanguage] || targetLanguage;
+      const ai = getGeminiClient();
+      let translationResult: any = null;
+
+      if (ai) {
+        try {
+          const prompt = `You are a Senior Multi-Lingual Veterinary Medical Officer & Translator for Bharat Pashudhan (NDLM) and ICAR-IVRI.
+Task: Translate this bovine clinical diagnostic pathology report into ${langLabel}.
+Write in clear, accessible, and grammatically authentic language for rural livestock dairy farmers.
+Keep drug names and chemical dosages clear (provide English brand/chemical name in brackets if helpful, e.g. पोटेशियम परमैंगनेट (Potassium Permanganate), मेलोक्सिकैम (Meloxicam)).
+
+INPUT REPORT TO TRANSLATE:
+- Disease Name: ${report.diseaseIdentified || report.primaryDiagnosis || 'Cattle Health Assessment'}
+- Common / Local Name: ${report.diseaseCommonName || ''}
+- Clinical Status: ${report.diseaseStatus || ''}
+- Diagnostic Summary: ${report.diseaseSummaryStatement || ''}
+- Symptoms Observed on Cattle: ${JSON.stringify(report.symptomsObserved || [])}
+- Immediate Remedies (Farmer First-Aid): ${JSON.stringify(report.immediateRemedies || [])}
+- Recommended Veterinary Actions: ${JSON.stringify(report.recommendedVeterinaryActions || [])}
+- Biosecurity & Isolation Protocol: ${JSON.stringify(report.biosecurityProtocol || [])}
+- Coat Condition: ${report.coatCondition || ''}
+- Pregnancy Risk Notes: ${report.reproductiveAndLactationAlerts?.pregnancyRiskNotes || ''}
+- Lactation Impact: ${report.reproductiveAndLactationAlerts?.lactationImpact || ''}
+- Drug Contraindications: ${JSON.stringify(report.reproductiveAndLactationAlerts?.drugContraindications || [])}
+- Nutritional Recommendation: ${report.reproductiveAndLactationAlerts?.nutritionalRecommendation || ''}
+
+OUTPUT FORMAT: Return strictly a valid JSON object matching this schema (do NOT include markdown code blocks, just raw json):
+{
+  "diseaseIdentified": "Translated disease name in ${langLabel}",
+  "diseaseCommonName": "Local vernacular name in ${langLabel} script",
+  "diseaseStatus": "Translated clinical status in ${langLabel}",
+  "diseaseSummaryStatement": "Clear 1-2 sentence translation of diagnostic findings in ${langLabel}",
+  "symptomsObserved": ["Translated symptom 1", "Translated symptom 2"],
+  "immediateRemedies": ["Translated remedy 1", "Translated remedy 2"],
+  "recommendedVeterinaryActions": ["Translated vet action 1", "Translated vet action 2"],
+  "biosecurityProtocol": ["Translated rule 1", "Translated rule 2"],
+  "coatCondition": "Translated coat condition",
+  "pregnancyRiskNotes": "Translated pregnancy safety guidance",
+  "lactationImpact": "Translated milk impact note",
+  "drugContraindications": ["Translated contraindication 1", "Translated contraindication 2"],
+  "nutritionalRecommendation": "Translated nutritional recommendation"
+}`;
+
+          const candidateModels = [
+            'gemini-3.8-flash',
+            'gemini-3.1-flash-lite',
+            'gemini-flash-latest',
+          ];
+
+          for (const modelName of candidateModels) {
+            try {
+              const response = await ai.models.generateContent({
+                model: modelName,
+                contents: [{ text: prompt }],
+                config: {
+                  responseMimeType: 'application/json',
+                  temperature: 0.1,
+                },
+              });
+
+              if (response.text) {
+                let cleaned = response.text.trim();
+                if (cleaned.startsWith('```json')) {
+                  cleaned = cleaned.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+                } else if (cleaned.startsWith('```')) {
+                  cleaned = cleaned.replace(/^```\s*/, '').replace(/\s*```$/, '');
+                }
+                translationResult = JSON.parse(cleaned);
+                if (translationResult && translationResult.diseaseSummaryStatement) {
+                  break;
+                }
+              }
+            } catch (err) {
+              console.warn(`Translation attempt on ${modelName} notice:`, err);
+            }
+          }
+        } catch (genErr) {
+          console.warn('Gemini report translation notice:', genErr);
+        }
+      }
+
+      // Intelligent vernacular fallback if offline or high demand
+      if (!translationResult) {
+        const isHealthy = /healthy|स्वस्थ|તંદુરસ્ત|निरोगी|সুস্থ/i.test(report.diseaseIdentified || report.primaryDiagnosis || '');
+        const disName = report.diseaseIdentified || report.primaryDiagnosis || 'Cattle Health Assessment';
+
+        const vernacularDictionary: Record<string, Record<string, string>> = {
+          hi: {
+            lsd: 'गांठदार त्वचा रोग (LSD / लंपी स्किन डिजीज)',
+            fmd: 'खुरपका-मुंहपका रोग (FMD)',
+            mastitis: 'थनैला रोग (मैस्टाइटिस)',
+            theileriosis: 'चीचड़ी बुखार (थाइलेरियासिस)',
+            pinkeye: 'आँख का संक्रामक रोग (पिंकआई)',
+            ringworm: 'दाद रोग (रिंगवर्म)',
+            hs: 'गलघोंटू रोग (HS / हेमोरेजिक सेप्टीसीमिया)',
+            bq: 'लंगड़ा बुखार (ब्लैक क्वार्टर / BQ)',
+            bloat: 'अफारा / पेट में गैस (एक्यूट ब्लोट)',
+            healthy: 'स्वस्थ पशु (कोई रोग नहीं)',
+          },
+          gu: {
+            lsd: 'ગાંઠદાર ચામડીનો રોગ (LSD)',
+            fmd: 'ખુરપકા-મોં પકા રોગ (FMD)',
+            mastitis: 'આંચળનો સોજો (મસ્ટાઇટિસ / થનેલા)',
+            theileriosis: 'ઇતરડી તાવ (થાઇલેરિયોસિસ)',
+            pinkeye: 'આંખનો ચેપી રોગ (પિંકઆઈ)',
+            ringworm: 'દાદર રોગ (રિંગવોર્મ)',
+            hs: 'ગલઘોંટુ રોગ (HS)',
+            bq: 'ગાંઠિયો તાવ (લંગડો તાવ / BQ)',
+            bloat: 'પેટનો આફરો (એક્યુટ બ્લોટ)',
+            healthy: 'તંદુરસ્ત પશુ (કોઈ રોગ નથી)',
+          },
+          mr: {
+            lsd: 'लंपी चर्मरोग (LSD)',
+            fmd: 'लाळ्या खुरकूत रोग (FMD)',
+            mastitis: 'कासदाह / स्तनदाह (मॅस्टायटिस)',
+            theileriosis: 'गोचीड ताप (थायलेरिओसिस)',
+            pinkeye: 'डोळ्यांचा संसर्ग (पिंक आय)',
+            ringworm: 'नायटा / गजकर्ण (रिंगवर्म)',
+            hs: 'घटसर्प रोग (HS)',
+            bq: 'फऱ्या रोग (लंगड्या ताप / BQ)',
+            bloat: 'पोटफुगी / अफरा (ब्लोट)',
+            healthy: 'निरोगी जनावर (कोणताही आजार नाही)',
+          },
+          bn: {
+            lsd: 'লাম্পি স্কিন ডিজিজ (LSD)',
+            fmd: 'খুরা রোগ ও মুখ রোগ (FMD)',
+            mastitis: 'ওলান ফোলা রোগ (ম্যাস্টাইটিস)',
+            theileriosis: 'টিক জ্বর (থাইলেরিওসিস)',
+            pinkeye: 'চোখের সংক্রমণ (পিংক আই)',
+            ringworm: 'দাদ রোগ (রিংওয়ার্ম)',
+            hs: 'গলাফুলা রোগ (HS)',
+            bq: 'বাদলা রোগ (ব্ল্যাক কোয়ার্টার)',
+            bloat: 'পেট ফাঁপা (ব্লট)',
+            healthy: 'সুস্থ পশু (কোনো রোগ নেই)',
+          },
+          te: {
+            lsd: 'లంపీ చర్మ వ్యాధి (LSD)',
+            fmd: 'గాలికుంటు వ్యాధి (FMD)',
+            mastitis: 'పొదుగువాపు వ్యాధి (మాస్టిటిస్)',
+            theileriosis: 'ఉన్ని జ్వరం (థైలేరియోసిస్)',
+            pinkeye: 'కంటి వ్యాధి (పింక్‌ఐ)',
+            ringworm: 'తామర వ్యాధి (రింగ్‌వార్మ్)',
+            hs: 'గొంతువాపు వ్యాధి (HS)',
+            bq: 'జబ్బవాపు వ్యాధి (బ్లాక్ క్వార్టర్)',
+            bloat: 'కడుపు ఉబ్బరం (బ్లోట్)',
+            healthy: 'ఆరోగ్యకరమైన పశువు (వ్యాధి లేదు)',
+          },
+          ta: {
+            lsd: 'தோல் கழலை நோய் (LSD)',
+            fmd: 'கோமாரி நோய் (FMD)',
+            mastitis: 'மடிநோய் (மாஸ்டிடிஸ்)',
+            theileriosis: 'உண்ணி காய்ச்சல் (தைலேரியோசிஸ்)',
+            pinkeye: 'வெண்படல அழற்சி (பிங்க்ஐ)',
+            ringworm: 'படை நோய் (ரிங்வார்ம்)',
+            hs: 'தொண்டை அடைப்பான் நோய் (HS)',
+            bq: 'சப்பை நோய் (பிளாக் குவார்ட்டர்)',
+            bloat: 'வயிறு உப்புசம் (ப்ளோட்)',
+            healthy: 'ஆரோக்கியமான கால்நடை (நோய் இல்லை)',
+          },
+          pa: {
+            lsd: 'ਲੰਪੀ ਚਮੜੀ ਰੋਗ (LSD)',
+            fmd: 'ਮੂੰਹ-ਖੁਰ ਦੀ ਬਿਮਾਰੀ (FMD)',
+            mastitis: 'ਥਣੇਲਾ ਰੋਗ (ਮੈਸਟਾਇਟਿਸ)',
+            theileriosis: 'ਚਿੱਚੜੀ ਬੁਖ਼ਾਰ (ਥਾਈਲੇਰੀਆ)',
+            pinkeye: 'ਅੱਖਾਂ ਦੀ ਲਾਗ (ਪਿੰਕਆਈ)',
+            ringworm: 'ਦਾਦ ਦੀ ਬਿਮਾਰੀ (ਰਿੰਗਵਰਮ)',
+            hs: 'ਗਲਘੋਟੂ ਰੋਗ (HS)',
+            bq: 'ਲੰਗੜਾ ਬੁਖ਼ਾਰ (ਬਲੈਕ ਕੁਆਰਟਰ)',
+            bloat: 'ਅਫਾਰਾ / ਪੇਟ ਫੁੱਲਣਾ',
+            healthy: 'ਤੰਦਰੁਸਤ ਪਸ਼ੂ (ਕੋਈ ਬਿਮਾਰੀ ਨਹੀਂ)',
+          },
+        };
+
+        const targetDict = vernacularDictionary[targetLanguage] || vernacularDictionary['hi'];
+        let matchedCommon = report.diseaseCommonName;
+        const dLower = disName.toLowerCase();
+        if (targetDict) {
+          if (isHealthy) matchedCommon = targetDict.healthy;
+          else if (dLower.includes('lumpy') || dLower.includes('lsd')) matchedCommon = targetDict.lsd;
+          else if (dLower.includes('foot') || dLower.includes('fmd')) matchedCommon = targetDict.fmd;
+          else if (dLower.includes('mastitis')) matchedCommon = targetDict.mastitis;
+          else if (dLower.includes('theileria')) matchedCommon = targetDict.theileriosis;
+          else if (dLower.includes('pinkeye')) matchedCommon = targetDict.pinkeye;
+          else if (dLower.includes('ringworm')) matchedCommon = targetDict.ringworm;
+          else if (dLower.includes('haemorrhagic') || dLower.includes('hs')) matchedCommon = targetDict.hs;
+          else if (dLower.includes('black quarter') || dLower.includes('bq')) matchedCommon = targetDict.bq;
+          else if (dLower.includes('bloat')) matchedCommon = targetDict.bloat;
+        }
+
+        translationResult = {
+          diseaseIdentified: matchedCommon || disName,
+          diseaseCommonName: matchedCommon || report.diseaseCommonName || disName,
+          diseaseStatus: isHealthy ? 'सामान्य व स्वस्थ (Normal Health)' : 'सक्रिय रोग संक्रमण (Active Clinical Pathology)',
+          diseaseSummaryStatement: isHealthy
+            ? `पशु का स्वास्थ्य सामान्य और स्वस्थ है। त्वचा चमकदार है और किसी भी रोग के सक्रिय लक्षण नहीं पाए गए हैं।`
+            : `पशु ${matchedCommon || disName} से पीड़ित पाया गया है। तत्काल आवश्यक प्राथमिक उपचार और नजदीकी पशु चिकित्सक से परामर्श सुनिश्चित करें।`,
+          symptomsObserved: report.symptomsObserved || [],
+          immediateRemedies: report.immediateRemedies || [],
+          recommendedVeterinaryActions: report.recommendedVeterinaryActions || [],
+          biosecurityProtocol: report.biosecurityProtocol || [],
+          coatCondition: report.coatCondition || '',
+          pregnancyRiskNotes: report.reproductiveAndLactationAlerts?.pregnancyRiskNotes || '',
+          lactationImpact: report.reproductiveAndLactationAlerts?.lactationImpact || '',
+          drugContraindications: report.reproductiveAndLactationAlerts?.drugContraindications || [],
+          nutritionalRecommendation: report.reproductiveAndLactationAlerts?.nutritionalRecommendation || '',
+        };
+      }
+
+      res.json({
+        targetLanguage,
+        languageLabel: langLabel,
+        translatedFields: translationResult,
+      });
+    } catch (err: any) {
+      console.error('Translate report endpoint error:', err);
+      res.status(500).json({ error: err.message || 'Report translation failed.' });
+    }
+  });
+
   // RAG Search Vector Query Endpoint
   app.post('/api/rag/search', async (req, res) => {
     try {
@@ -1702,6 +2082,142 @@ Return strictly a valid JSON object with the following structure:
     }
   });
 
+  // --- CLOUD SQL POSTGRESQL API ENDPOINTS ---
+
+  // Livestock Animals
+  app.get('/api/animals', async (req, res) => {
+    try {
+      const data = await getAllAnimals();
+      res.json(data);
+    } catch (err: any) {
+      console.warn('Fallback getting animals from database:', err);
+      res.json(INITIAL_ANIMAL_PROFILES);
+    }
+  });
+
+  app.post('/api/animals', async (req, res) => {
+    try {
+      const profile = req.body;
+      if (!profile || !profile.id) {
+        return res.status(400).json({ error: 'Valid animal profile with id is required.' });
+      }
+      const saved = await upsertAnimal(profile);
+      res.json(saved);
+    } catch (err: any) {
+      console.error('Failed to save animal in Cloud SQL:', err);
+      res.status(500).json({ error: err.message || 'Failed to save animal profile' });
+    }
+  });
+
+  // Diagnostic Assessments
+  app.get('/api/assessments', async (req, res) => {
+    try {
+      const data = await getAllAssessments();
+      res.json(data);
+    } catch (err: any) {
+      console.warn('Fallback getting assessments from database:', err);
+      res.json(INITIAL_ASSESSMENTS);
+    }
+  });
+
+  app.post('/api/assessments', async (req, res) => {
+    try {
+      const assessment = req.body;
+      if (!assessment || !assessment.id) {
+        return res.status(400).json({ error: 'Valid assessment object with id is required.' });
+      }
+      const saved = await insertAssessment(assessment);
+      res.json(saved);
+    } catch (err: any) {
+      console.error('Failed to save assessment in Cloud SQL:', err);
+      res.status(500).json({ error: err.message || 'Failed to save assessment' });
+    }
+  });
+
+  // Formal Veterinary Reports for Animal
+  app.post('/api/animals/:id/reports', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const report = req.body;
+      await addReportToAnimal(id, report);
+      res.json({ success: true, message: 'Report persisted to Cloud SQL' });
+    } catch (err: any) {
+      console.error('Failed to save report in Cloud SQL:', err);
+      res.status(500).json({ error: err.message || 'Failed to save formal report' });
+    }
+  });
+
+  // Image Storage (Stores uploads persistently in PostgreSQL & returns URL)
+  app.post('/api/storage/upload', async (req, res) => {
+    try {
+      const { image, mimeType = 'image/jpeg' } = req.body;
+      if (!image) {
+        return res.status(400).json({ error: 'No image data provided' });
+      }
+      const fileKey = `img_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 7)}`;
+      const url = await saveImageToStorage(fileKey, mimeType, image);
+      res.json({ url, fileKey });
+    } catch (err: any) {
+      console.error('Failed to store image in Cloud SQL storage:', err);
+      res.status(500).json({ error: 'Storage failed' });
+    }
+  });
+
+  // Retrieve Stored Image
+  app.get('/api/storage/:fileKey', async (req, res) => {
+    try {
+      const { fileKey } = req.params;
+      const record = await getImageFromStorage(fileKey);
+      if (!record) {
+        return res.status(404).send('Image not found');
+      }
+      if (record.imageData.startsWith('data:')) {
+        const matches = record.imageData.match(/^data:([^;]+);base64,(.+)$/);
+        if (matches) {
+          const mime = matches[1];
+          const buffer = Buffer.from(matches[2], 'base64');
+          res.setHeader('Content-Type', mime);
+          res.setHeader('Cache-Control', 'public, max-age=31536000');
+          return res.send(buffer);
+        }
+      }
+      const buffer = Buffer.from(record.imageData, 'base64');
+      res.setHeader('Content-Type', record.mimeType || 'image/jpeg');
+      res.setHeader('Cache-Control', 'public, max-age=31536000');
+      res.send(buffer);
+    } catch (err) {
+      res.status(500).send('Error loading image');
+    }
+  });
+
+  // User Profile Sync (Firebase Auth or Session Sync)
+  app.post('/api/users/sync', async (req, res) => {
+    try {
+      const user = req.body;
+      if (!user || !user.uid) {
+        return res.status(400).json({ error: 'User UID is required' });
+      }
+      const savedUser = await getOrCreateUser(user);
+      res.json(savedUser);
+    } catch (err: any) {
+      console.error('Error syncing user to Cloud SQL:', err);
+      res.status(500).json({ error: err.message || 'User sync failed' });
+    }
+  });
+
+  app.get('/api/users/:uid', async (req, res) => {
+    try {
+      const { uid } = req.params;
+      const user = await getUserByUid(uid);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      res.json(user);
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to fetch user' });
+    }
+  });
+
   // Vite middleware for dev / static for prod
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
@@ -1719,7 +2235,17 @@ Return strictly a valid JSON object with the following structure:
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`PashuHealth AI Core running on http://0.0.0.0:${PORT}`);
+
+    // Asynchronously seed initial records without delaying server startup
+    setTimeout(() => {
+      seedInitialData(INITIAL_ANIMAL_PROFILES, INITIAL_ASSESSMENTS, MOCK_OUTBREAK_ALERTS).catch((err) => {
+        console.warn('Initial database seed notice:', err.message);
+      });
+    }, 1000);
   });
 }
 
-startServer();
+startServer().catch((err) => {
+  console.error('Failed to start server:', err);
+  process.exit(1);
+});
