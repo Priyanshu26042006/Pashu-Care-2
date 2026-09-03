@@ -346,9 +346,9 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
     if (!targetImage || targetImage.length < 50) {
       setRejectionData({
         title: 'NON LIVING OBJECT DETECTED',
-        message: 'PLEASE RETAKE PROPERLY',
+        message: 'PLEASE RETAKE',
         detectedObject: 'Blank or missing frame',
-        details: 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY. The frame is blank. Please aim camera at the animal or upload a valid photo.'
+        details: 'NON LIVING OBJECT DETECTED - PLEASE RETAKE. The frame is blank. Please aim your camera directly at the animal or upload a valid photo.'
       });
       return;
     }
@@ -415,9 +415,9 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
       if (err?.isNonLivingObject) {
         setRejectionData({
           title: 'NON LIVING OBJECT DETECTED',
-          message: 'PLEASE RETAKE PROPERLY',
+          message: 'PLEASE RETAKE',
           detectedObject: err?.detectedObject || 'Inanimate / Non-livestock item',
-          details: err?.rejectionMessage || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY. The captured frame does not appear to contain a recognized livestock animal. Please align your camera directly with the animal and capture again.'
+          details: err?.rejectionMessage || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE. The captured frame does not appear to contain a recognized livestock animal. Please align your camera directly with the animal and capture again.'
         });
       } else {
         setRejectionData({

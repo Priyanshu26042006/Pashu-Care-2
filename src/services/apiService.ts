@@ -148,35 +148,48 @@ export async function runLivestockAssessment(params: {
 
     const data = await response.json();
 
-    if (!response.ok) {
-      if (response.status === 422 && data.isNonLivingObject) {
-        const err: any = new Error(
-          data.message || data.rejectionMessage || data.error || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY'
-        );
-        err.isNonLivingObject = true;
-        err.detectedObject = data.detectedObject || 'Inanimate Non-Livestock Item';
-        err.rejectionReason = data.rejectionReason || 'NON LIVING OBJECT DETECTED';
-        err.rejectionMessage = data.rejectionMessage || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY';
-        throw err;
-      }
-      throw new Error(data.message || data.error || 'Diagnostic assessment failed');
-    }
+    const isNonLiving = Boolean(
+      data?.isNonLivingObject ||
+      (typeof data?.rejectionReason === 'string' && data.rejectionReason.toUpperCase().includes('NON LIVING')) ||
+      (typeof data?.error === 'string' && data.error.toUpperCase().includes('NON LIVING')) ||
+      (typeof data?.message === 'string' && data.message.toUpperCase().includes('NON LIVING')) ||
+      (typeof data?.rejectionMessage === 'string' && data.rejectionMessage.toUpperCase().includes('NON LIVING')) ||
+      response.status === 422
+    );
 
-    if (data.isNonLivingObject) {
+    if (isNonLiving) {
       const err: any = new Error(
-        data.message || data.rejectionMessage || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY'
+        data?.message || data?.rejectionMessage || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE'
       );
       err.isNonLivingObject = true;
-      err.detectedObject = data.detectedObject || 'Inanimate Non-Livestock Item';
-      err.rejectionReason = data.rejectionReason || 'NON LIVING OBJECT DETECTED';
-      err.rejectionMessage = data.rejectionMessage || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY';
+      err.detectedObject = data?.detectedObject || 'Inanimate Non-Livestock Item';
+      err.rejectionReason = 'NON LIVING OBJECT DETECTED';
+      err.rejectionMessage = data?.rejectionMessage || data?.message || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE';
       throw err;
+    }
+
+    if (!response.ok) {
+      throw new Error(data?.message || data?.error || `Diagnostic assessment failed with status ${response.status}`);
     }
 
     return data;
   } catch (err: any) {
-    if (err?.isNonLivingObject) {
-      // Re-throw non-living object rejection so UI displays the required error
+    if (
+      err?.isNonLivingObject ||
+      String(err?.message || '').toUpperCase().includes('NON LIVING') ||
+      String(err?.rejectionReason || '').toUpperCase().includes('NON LIVING') ||
+      String(err?.rejectionMessage || '').toUpperCase().includes('NON LIVING')
+    ) {
+      err.isNonLivingObject = true;
+      if (!err.rejectionMessage) {
+        err.rejectionMessage = 'NON LIVING OBJECT DETECTED - PLEASE RETAKE';
+      }
+      throw err;
+    }
+
+    // For live or uploaded photo scans, propagate real scan errors rather than pretending it's LSD
+    if (params.scanMode !== 'preset' && !params.isPreset) {
+      console.error('Scan processing error:', err);
       throw err;
     }
 
