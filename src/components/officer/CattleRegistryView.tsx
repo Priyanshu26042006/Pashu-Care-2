@@ -525,7 +525,7 @@ export const CattleRegistryView: React.FC<CattleRegistryViewProps> = ({
         </div>
       ) : (
         <div className="space-y-4">
-          {filteredAndSortedCattles.map((item, idx) => {
+          {filteredAndSortedCattles.map((item) => {
             const { animal, riskScore, riskTier, riskReasons, latestAssessment, allAssessments, hasOverdueVaccine, isQuarantined } = item;
 
             // Risk styling badges
@@ -546,7 +546,7 @@ export const CattleRegistryView: React.FC<CattleRegistryViewProps> = ({
 
             return (
               <div
-                key={`registry-animal-${animal.id}-${idx}`}
+                key={animal.id}
                 className={`bg-white border rounded-3xl p-5 sm:p-6 transition-all shadow-xs hover:shadow-md space-y-4 ${
                   riskTier === 'Critical'
                     ? 'border-rose-300 hover:border-rose-500'

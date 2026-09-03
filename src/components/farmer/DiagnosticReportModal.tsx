@@ -1180,8 +1180,8 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
                           onChange={(e) => setTargetAnimalId(e.target.value)}
                           className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-800 font-medium text-xs focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                         >
-                          {animals.map((anim, idx) => (
-                            <option key={`report-target-anim-${anim.id}-${idx}`} value={anim.id}>
+                          {animals.map((anim) => (
+                            <option key={anim.id} value={anim.id}>
                               {anim.earTagNumber} - {anim.name || anim.breed} ({anim.ownerName})
                             </option>
                           ))}
@@ -1254,16 +1254,11 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
 
                     <button
                       onClick={() => {
-                        const isNewSpecimen = targetAnimalId === 'new_specimen';
-                        const matchedAnimal = isNewSpecimen ? null : animals.find((a) => a.id === targetAnimalId);
-                        const newAnimalId = isNewSpecimen
-                          ? `anim-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`
-                          : (matchedAnimal?.id || assessment.animalId || `anim-${Date.now().toString(36)}`);
-
+                        const matchedAnimal = animals.find((a) => a.id === targetAnimalId);
                         const newReport: CattleFormalReport = {
                           id: `rep-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`,
                           reportNumber: `NDLM-REP-${Math.floor(100000 + Math.random() * 900000)}`,
-                          animalId: newAnimalId,
+                          animalId: matchedAnimal?.id || assessment.animalId || `anim-${Date.now().toString(36)}`,
                           animalEarTag: matchedAnimal?.earTagNumber || `IN-DLM-${Math.floor(1000 + Math.random() * 9000)}`,
                           animalName: matchedAnimal?.name || `${assessment.predictedBreed.split(' ')[0]} Specimen`,
                           breed: assessment.predictedBreed,
@@ -1297,7 +1292,7 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
                         };
 
                         if (onCreateSeparateReport) {
-                          onCreateSeparateReport(newReport, isNewSpecimen ? newAnimalId : (matchedAnimal?.id || targetAnimalId));
+                          onCreateSeparateReport(newReport, matchedAnimal?.id || targetAnimalId);
                         }
                         setReportCreatedSuccess(newReport);
                       }}

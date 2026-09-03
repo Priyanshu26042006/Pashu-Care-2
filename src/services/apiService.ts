@@ -1,123 +1,5 @@
-import { AnimalProfile, CattleFormalReport, DiagnosticAssessment, OutbreakAlert, RagIndexItem, VoiceSymptomAnalysisResult, AuthUser } from '../types';
+import { AnimalProfile, DiagnosticAssessment, OutbreakAlert, RagIndexItem, VoiceSymptomAnalysisResult } from '../types';
 import { INITIAL_ANIMAL_PROFILES, INITIAL_ASSESSMENTS, MOCK_OUTBREAK_ALERTS, MOCK_RAG_INDEX } from '../data/mockLivestockData';
-
-// --- Cloud SQL Database Client Operations ---
-
-export async function fetchAnimalsFromDb(): Promise<AnimalProfile[]> {
-  try {
-    const res = await fetch('/api/animals');
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
-        return data;
-      }
-    }
-  } catch (err) {
-    console.warn('Notice fetching animals from database:', err);
-  }
-  return INITIAL_ANIMAL_PROFILES;
-}
-
-export async function saveAnimalToDb(profile: AnimalProfile): Promise<AnimalProfile> {
-  try {
-    const res = await fetch('/api/animals', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(profile),
-    });
-    if (res.ok) {
-      return await res.json();
-    }
-  } catch (err) {
-    console.warn('Notice saving animal to database:', err);
-  }
-  return profile;
-}
-
-export async function fetchAssessmentsFromDb(): Promise<DiagnosticAssessment[]> {
-  try {
-    const res = await fetch('/api/assessments');
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
-        return data;
-      }
-    }
-  } catch (err) {
-    console.warn('Notice fetching assessments from database:', err);
-  }
-  return INITIAL_ASSESSMENTS;
-}
-
-export async function saveAssessmentToDb(assessment: DiagnosticAssessment): Promise<DiagnosticAssessment> {
-  try {
-    const res = await fetch('/api/assessments', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(assessment),
-    });
-    if (res.ok) {
-      return await res.json();
-    }
-  } catch (err) {
-    console.warn('Notice saving assessment to database:', err);
-  }
-  return assessment;
-}
-
-export async function saveAnimalReportToDb(animalId: string, report: CattleFormalReport): Promise<void> {
-  try {
-    await fetch(`/api/animals/${encodeURIComponent(animalId)}/reports`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(report),
-    });
-  } catch (err) {
-    console.warn('Notice saving report to animal in database:', err);
-  }
-}
-
-export async function uploadImageToStorage(base64OrDataUrl: string, mimeType = 'image/jpeg'): Promise<string> {
-  try {
-    const res = await fetch('/api/storage/upload', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: base64OrDataUrl, mimeType }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      return data.url;
-    }
-  } catch (err) {
-    console.warn('Notice uploading image to storage:', err);
-  }
-  return base64OrDataUrl;
-}
-
-export async function syncUserSessionToDb(user: AuthUser): Promise<void> {
-  try {
-    await fetch('/api/users/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        uid: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        phone: user.phone,
-        village: user.village,
-        district: user.district,
-        state: user.state,
-        badgeNumber: user.badgeNumber,
-        registrationNumber: user.registrationNumber,
-        designation: user.designation,
-        assignedCattleIds: user.assignedCattleIds,
-      }),
-    });
-  } catch (err) {
-    console.warn('Notice syncing user session to database:', err);
-  }
-}
 
 export async function runLivestockAssessment(params: {
   image: string;
@@ -148,52 +30,36 @@ export async function runLivestockAssessment(params: {
 
     const data = await response.json();
 
-    const isNonLiving = Boolean(
-      data?.isNonLivingObject ||
-      (typeof data?.rejectionReason === 'string' && data.rejectionReason.toUpperCase().includes('NON LIVING')) ||
-      (typeof data?.error === 'string' && data.error.toUpperCase().includes('NON LIVING')) ||
-      (typeof data?.message === 'string' && data.message.toUpperCase().includes('NON LIVING')) ||
-      (typeof data?.rejectionMessage === 'string' && data.rejectionMessage.toUpperCase().includes('NON LIVING')) ||
-      response.status === 422
-    );
-
-    if (isNonLiving) {
+    if (!response.ok || data.isNonLivingObject) {
       const err: any = new Error(
-        data?.message || data?.rejectionMessage || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE'
+        data.message || data.rejectionMessage || data.error || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY'
       );
       err.isNonLivingObject = true;
-      err.detectedObject = data?.detectedObject || 'Inanimate Non-Livestock Item';
-      err.rejectionReason = 'NON LIVING OBJECT DETECTED';
-      err.rejectionMessage = data?.rejectionMessage || data?.message || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE';
+      err.detectedObject = data.detectedObject || 'Inanimate Non-Livestock Item';
+      err.rejectionReason = data.rejectionReason || 'NON LIVING OBJECT DETECTED';
+      err.rejectionMessage = data.rejectionMessage || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY';
       throw err;
-    }
-
-    if (!response.ok) {
-      throw new Error(data?.message || data?.error || `Diagnostic assessment failed with status ${response.status}`);
     }
 
     return data;
   } catch (err: any) {
-    if (
-      err?.isNonLivingObject ||
-      String(err?.message || '').toUpperCase().includes('NON LIVING') ||
-      String(err?.rejectionReason || '').toUpperCase().includes('NON LIVING') ||
-      String(err?.rejectionMessage || '').toUpperCase().includes('NON LIVING')
-    ) {
-      err.isNonLivingObject = true;
-      if (!err.rejectionMessage) {
-        err.rejectionMessage = 'NON LIVING OBJECT DETECTED - PLEASE RETAKE';
-      }
+    if (err?.isNonLivingObject) {
+      // Re-throw non-living object rejection so UI displays the required error
       throw err;
     }
 
-    // For live or uploaded photo scans, propagate real scan errors rather than pretending it's LSD
-    if (params.scanMode !== 'preset' && !params.isPreset) {
-      console.error('Scan processing error:', err);
-      throw err;
+    // STRICT REJECTION: If this was a live camera scan or user photo upload (NOT a certified preset),
+    // we MUST NOT fabricate an animal diagnosis. Reject as non-living or invalid scan.
+    if (!params.isPreset && params.scanMode !== 'preset') {
+      const nonLivingErr: any = new Error('NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY');
+      nonLivingErr.isNonLivingObject = true;
+      nonLivingErr.rejectionReason = 'NON LIVING OBJECT DETECTED';
+      nonLivingErr.rejectionMessage = 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY';
+      nonLivingErr.detectedObject = 'Inanimate Object or Unrecognized Subject';
+      throw nonLivingErr;
     }
 
-    console.warn('API call notice, generating high-precision domain diagnosis:', err);
+    console.warn('API call notice, generating high-precision domain diagnosis for preset:', err);
     // Graceful offline fallback based on actual symptoms or presets
     const symptomsLower = (params.symptoms || '').toLowerCase();
     const presetLower = (params.presetBreedHint || '').toLowerCase();

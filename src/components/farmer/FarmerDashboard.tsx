@@ -271,9 +271,9 @@ export const FarmerDashboard: React.FC<FarmerDashboardProps> = ({
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredAnimals.map((animal, idx) => (
+          {filteredAnimals.map((animal) => (
             <div
-              key={`farmer-animal-${animal.id}-${idx}`}
+              key={animal.id}
               className="bg-white border border-slate-200 hover:border-emerald-500/60 rounded-2xl p-4 transition-all shadow-xs hover:shadow-md flex flex-col justify-between space-y-4 group"
             >
               <div className="flex space-x-4">

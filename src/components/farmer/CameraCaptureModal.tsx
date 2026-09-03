@@ -198,65 +198,17 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
     setCameraActive(false);
   };
 
-  // Helper to downscale and optimize image resolution for fast Gemini AI multimodal diagnosis
-  const optimizeImageDataUrl = (dataUrl: string, maxDimension = 1024, quality = 0.85): Promise<string> => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        let width = img.width;
-        let height = img.height;
-
-        if (width > maxDimension || height > maxDimension) {
-          if (width > height) {
-            height = Math.round((height * maxDimension) / width);
-            width = maxDimension;
-          } else {
-            width = Math.round((width * maxDimension) / height);
-            height = maxDimension;
-          }
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', quality));
-        } else {
-          resolve(dataUrl);
-        }
-      };
-      img.onerror = () => resolve(dataUrl);
-      img.src = dataUrl;
-    });
-  };
-
-  // Helper to grab optimized frame from video element
+  // Helper to grab frame from video element
   const getCanvasFrame = (): string | null => {
     if (!videoRef.current) return null;
     try {
-      const origW = videoRef.current.videoWidth || 1280;
-      const origH = videoRef.current.videoHeight || 720;
-      const maxDim = 1024;
-      let w = origW;
-      let h = origH;
-      if (w > maxDim || h > maxDim) {
-        if (w > h) {
-          h = Math.round((h * maxDim) / w);
-          w = maxDim;
-        } else {
-          w = Math.round((w * maxDim) / h);
-          h = maxDim;
-        }
-      }
       const canvas = document.createElement('canvas');
-      canvas.width = w;
-      canvas.height = h;
+      canvas.width = videoRef.current.videoWidth || 1280;
+      canvas.height = videoRef.current.videoHeight || 720;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        ctx.drawImage(videoRef.current, 0, 0, w, h);
-        return canvas.toDataURL('image/jpeg', 0.85);
+        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+        return canvas.toDataURL('image/jpeg', 0.92);
       }
     } catch (e) {
       console.warn('Failed to extract canvas frame', e);
@@ -281,16 +233,8 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = async (event) => {
-        const raw = event.target?.result as string;
-        if (raw) {
-          try {
-            const optimized = await optimizeImageDataUrl(raw);
-            setUploadedImage(optimized);
-          } catch {
-            setUploadedImage(raw);
-          }
-        }
+      reader.onload = (event) => {
+        setUploadedImage(event.target?.result as string);
       };
       reader.readAsDataURL(file);
     }
@@ -346,9 +290,9 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
     if (!targetImage || targetImage.length < 50) {
       setRejectionData({
         title: 'NON LIVING OBJECT DETECTED',
-        message: 'PLEASE RETAKE',
+        message: 'PLEASE RETAKE PROPERLY',
         detectedObject: 'Blank or missing frame',
-        details: 'NON LIVING OBJECT DETECTED - PLEASE RETAKE. The frame is blank. Please aim your camera directly at the animal or upload a valid photo.'
+        details: 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY. The frame is blank. Please aim camera at the animal or upload a valid photo.'
       });
       return;
     }
@@ -411,22 +355,13 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
       console.warn('Livestock scanner rejection note:', err);
       setIsProcessing(false);
       
-      // Modal display for non-living objects or scan alerts
-      if (err?.isNonLivingObject) {
-        setRejectionData({
-          title: 'NON LIVING OBJECT DETECTED',
-          message: 'PLEASE RETAKE',
-          detectedObject: err?.detectedObject || 'Inanimate / Non-livestock item',
-          details: err?.rejectionMessage || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE. The captured frame does not appear to contain a recognized livestock animal. Please align your camera directly with the animal and capture again.'
-        });
-      } else {
-        setRejectionData({
-          title: 'Diagnostic Scan Alert',
-          message: 'Please check connection or retake',
-          detectedObject: 'Scan Signal Interrupted',
-          details: err?.message || 'The diagnostic scanner encountered a temporary network delay. Please position your camera steadily and tap Diagnose again.'
-        });
-      }
+      // Strict rejection modal display for non-living objects
+      setRejectionData({
+        title: 'NON LIVING OBJECT DETECTED',
+        message: 'PLEASE RETAKE PROPERLY',
+        detectedObject: err?.detectedObject || 'Inanimate / Non-livestock item',
+        details: err?.rejectionMessage || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY. The uploaded picture does not contain a living livestock animal (cattle, buffalo, goat, or sheep). Please position the animal inside the camera reticle and take a clear photo.'
+      });
     }
   };
 

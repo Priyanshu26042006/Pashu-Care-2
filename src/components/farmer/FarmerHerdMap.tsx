@@ -354,7 +354,7 @@ export const FarmerHerdMap: React.FC<FarmerHerdMapProps> = ({
                 ))}
 
               {/* Farmer Bovine Cattle & Buffalo Pins */}
-              {filteredAnimals.map((animal, idx) => {
+              {filteredAnimals.map((animal) => {
                 const isCritical =
                   animal.currentStatus.includes('Flagged') || animal.currentStatus.includes('Critical');
                 const isModerate = animal.currentStatus.includes('Moderate');
@@ -362,7 +362,7 @@ export const FarmerHerdMap: React.FC<FarmerHerdMapProps> = ({
 
                 return (
                   <AdvancedMarker
-                    key={`herd-marker-${animal.id}-${idx}`}
+                    key={animal.id}
                     position={{ lat: animal.gpsLocation.lat, lng: animal.gpsLocation.lng }}
                     onClick={() => {
                       setSelectedAnimal(animal);

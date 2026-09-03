@@ -14,34 +14,8 @@ import { LoginScreen, DEMO_FARMERS, DEMO_VETS } from './components/auth/LoginScr
 import { AnimalProfile, AuthUser, CattleFormalReport, DiagnosticAssessment, SupportedLanguage, UserRole } from './types';
 import { INITIAL_ANIMAL_PROFILES, INITIAL_ASSESSMENTS } from './data/mockLivestockData';
 import { CheckCircle2, ShieldAlert } from 'lucide-react';
-import {
-  fetchAnimalsFromDb,
-  fetchAssessmentsFromDb,
-  saveAnimalToDb,
-  saveAssessmentToDb,
-  saveAnimalReportToDb,
-  syncUserSessionToDb,
-} from './services/apiService';
 
 const STORAGE_KEY_USER = 'gausehat_current_user_session';
-
-function deduplicateAnimals(items: AnimalProfile[]): AnimalProfile[] {
-  const seen = new Set<string>();
-  return items.filter((item) => {
-    if (!item?.id || seen.has(item.id)) return false;
-    seen.add(item.id);
-    return true;
-  });
-}
-
-function deduplicateAssessments(items: DiagnosticAssessment[]): DiagnosticAssessment[] {
-  const seen = new Set<string>();
-  return items.filter((item) => {
-    if (!item?.id || seen.has(item.id)) return false;
-    seen.add(item.id);
-    return true;
-  });
-}
 
 export default function App() {
   // Authentication State
@@ -68,30 +42,6 @@ export default function App() {
   const [selectedAnimal, setSelectedAnimal] = useState<AnimalProfile | null>(null);
   const [escalationToast, setEscalationToast] = useState<string | null>(null);
 
-  // Fetch initial records from Cloud SQL database
-  useEffect(() => {
-    let isMounted = true;
-    fetchAnimalsFromDb()
-      .then((data) => {
-        if (isMounted && data && data.length > 0) {
-          setAnimals((prev) => deduplicateAnimals([...data, ...prev]));
-        }
-      })
-      .catch((err) => console.warn('Could not load animals from database:', err));
-
-    fetchAssessmentsFromDb()
-      .then((data) => {
-        if (isMounted && data && data.length > 0) {
-          setAssessments((prev) => deduplicateAssessments([...data, ...prev]));
-        }
-      })
-      .catch((err) => console.warn('Could not load assessments from database:', err));
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
   // Synchronize Tab permissions when role changes or initial load
   useEffect(() => {
     if (currentUser?.role === 'farmer' && activeTab === 'officer') {
@@ -106,9 +56,6 @@ export default function App() {
     } catch (e) {
       console.warn('Failed to save user session', e);
     }
-
-    // Persist and sync user session in Cloud SQL PostgreSQL
-    syncUserSessionToDb(user).catch((err) => console.warn('Sync user error:', err));
 
     if (user.role === 'veterinarian') {
       setActiveTab('officer');
@@ -152,41 +99,34 @@ export default function App() {
   };
 
   const handleAssessmentComplete = (newAssessment: DiagnosticAssessment) => {
-    setAssessments((prev) => deduplicateAssessments([newAssessment, ...prev]));
-    saveAssessmentToDb(newAssessment).catch((e) => console.warn('Assessment save notice:', e));
+    setAssessments((prev) => [newAssessment, ...prev]);
 
     // Update or add corresponding animal profile
     setAnimals((prev) => {
       const matchIndex = prev.findIndex(
-        (a) => a.id === newAssessment.animalId
+        (a) => a.id === newAssessment.animalId || a.breed.toLowerCase().includes(newAssessment.predictedBreed.split(' ')[0].toLowerCase())
       );
       if (matchIndex >= 0) {
         const updated = [...prev];
         const current = updated[matchIndex];
-        const updatedAnimal: AnimalProfile = {
+        updated[matchIndex] = {
           ...current,
           lastAssessmentDate: newAssessment.timestamp,
           bodyConditionScore: newAssessment.bodyConditionScore,
-          currentStatus: (newAssessment.severityGrade === 'Emergency Quarantine'
+          currentStatus: newAssessment.severityGrade === 'Emergency Quarantine'
             ? 'Critical / Flagged'
             : newAssessment.severityGrade === 'Severe'
             ? 'Critical / Flagged'
             : newAssessment.severityGrade === 'Moderate'
             ? 'Moderate Concern'
-            : 'Healthy') as any,
+            : 'Healthy',
           assessmentsCount: current.assessmentsCount + 1,
         };
-        updated[matchIndex] = updatedAnimal;
-        saveAnimalToDb(updatedAnimal).catch((e) => console.warn('Animal update notice:', e));
-        return deduplicateAnimals(updated);
+        return updated;
       } else {
-        // Create new animal profile record with guaranteed unique ID
-        const uniqueAnimalId = prev.some((a) => a.id === newAssessment.animalId)
-          ? `anim-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`
-          : newAssessment.animalId;
-
+        // Create new animal profile record
         const newAnimal: AnimalProfile = {
-          id: uniqueAnimalId,
+          id: newAssessment.animalId,
           earTagNumber: `IN-DLM-${Math.floor(1000 + Math.random() * 9000)}`,
           name: `${newAssessment.predictedBreed.split(' ')[0]} Specimen`,
           species: (newAssessment.detectedSpecies as any) || 'Cattle',
@@ -204,9 +144,9 @@ export default function App() {
             lng: newAssessment.gpsMetadata.lng,
             timestamp: newAssessment.timestamp,
           },
-          currentStatus: (newAssessment.severityGrade === 'Emergency Quarantine' || newAssessment.severityGrade === 'Severe'
+          currentStatus: newAssessment.severityGrade === 'Emergency Quarantine' || newAssessment.severityGrade === 'Severe'
             ? 'Critical / Flagged'
-            : 'Moderate Concern') as any,
+            : 'Moderate Concern',
           lastAssessmentDate: newAssessment.timestamp,
           thumbnailUrl: newAssessment.imageUrl,
           bodyConditionScore: newAssessment.bodyConditionScore,
@@ -214,10 +154,9 @@ export default function App() {
             { name: 'FMD Oil Adjuvant Vaccine', date: '2026-02-10', nextDueDate: '2026-08-10', batchNo: 'FMD-IN-901' }
           ],
           assessmentsCount: 1,
-          quarantineStatus: (newAssessment.severityGrade === 'Emergency Quarantine' ? 'Enforced' : 'None') as any,
+          quarantineStatus: newAssessment.severityGrade === 'Emergency Quarantine' ? 'Enforced' : 'None',
         };
-        saveAnimalToDb(newAnimal).catch((e) => console.warn('New animal save notice:', e));
-        return deduplicateAnimals([newAnimal, ...prev]);
+        return [newAnimal, ...prev];
       }
     });
 
@@ -235,10 +174,8 @@ export default function App() {
   };
 
   const handleCreateSeparateReport = (report: CattleFormalReport, targetAnimalId?: string) => {
-    const targetId = targetAnimalId || report.animalId;
-    saveAnimalReportToDb(targetId, report).catch((e) => console.warn('Report save notice:', e));
-
     setAnimals((prev) => {
+      const targetId = targetAnimalId || report.animalId;
       const matchIndex = prev.findIndex(
         (a) => a.id === targetId || a.earTagNumber === report.animalEarTag
       );
@@ -246,20 +183,15 @@ export default function App() {
         const updated = [...prev];
         const target = updated[matchIndex];
         const existingReports = target.reports || [];
-        const filteredReports = existingReports.filter((r) => r.id !== report.id);
         updated[matchIndex] = {
           ...target,
-          reports: [report, ...filteredReports],
+          reports: [report, ...existingReports],
         };
-        return deduplicateAnimals(updated);
+        return updated;
       } else {
-        // If registered as new specimen record, guarantee unique ID
-        const uniqueId = prev.some((a) => a.id === report.animalId)
-          ? `anim-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`
-          : report.animalId;
-
+        // If registered as new specimen record
         const newAnimal: AnimalProfile = {
-          id: uniqueId,
+          id: report.animalId,
           earTagNumber: report.animalEarTag,
           name: report.animalName || `${report.breed.split(' ')[0]} Specimen`,
           species: (report.species as any) || 'Cattle',
@@ -292,8 +224,7 @@ export default function App() {
           quarantineStatus: report.severityGrade === 'Emergency Quarantine' ? 'Enforced' : 'None',
           reports: [report],
         };
-        saveAnimalToDb(newAnimal).catch((e) => console.warn('New animal save notice:', e));
-        return deduplicateAnimals([newAnimal, ...prev]);
+        return [newAnimal, ...prev];
       }
     });
 
