@@ -163,27 +163,31 @@ async function startServer() {
             // Preset catalog or external image URL -> fetch and supply inlineData
             try {
               const fetchResp = await fetch(image);
-              const arrayBuf = await fetchResp.arrayBuffer();
-              const b64 = Buffer.from(arrayBuf).toString('base64');
-              const ct = (fetchResp.headers.get('content-type') || 'image/jpeg').toLowerCase();
-              const mime = ct.includes('png') ? 'image/png' : ct.includes('webp') ? 'image/webp' : 'image/jpeg';
-              imagePart = {
-                inlineData: {
-                  mimeType: mime,
-                  data: b64,
-                },
-              };
+              if (fetchResp.ok) {
+                const arrayBuf = await fetchResp.arrayBuffer();
+                const b64 = Buffer.from(arrayBuf).toString('base64');
+                const ct = (fetchResp.headers.get('content-type') || 'image/jpeg').toLowerCase();
+                const mime = ct.includes('png') ? 'image/png' : ct.includes('webp') ? 'image/webp' : 'image/jpeg';
+                imagePart = {
+                  inlineData: {
+                    mimeType: mime,
+                    data: b64,
+                  },
+                };
+              } else {
+                console.warn('Remote image fetch returned non-200 status:', fetchResp.status);
+              }
             } catch (fetchErr) {
               console.warn('Could not fetch remote image for inlineData', fetchErr);
             }
           }
 
           const prompt = `Role: Senior Veterinary Epidemiologist & AI Diagnostic Specialist for Bharat Pashudhan (NDLM) & ICAR-IVRI.
-Task: Conduct a comprehensive, evidence-based veterinary disease diagnosis on this livestock image captured via the Smart Guided Livestock Camera Scan.
+Task: Conduct an evidence-based multi-modal veterinary diagnosis on this livestock image captured via the Smart Guided Livestock Camera Scan.
 
 CLINICAL CONTEXT:
 - Target Species: ${species}
-${symptoms ? `- Farmer Reported Symptoms: "${symptoms}"` : '- Farmer Reported Symptoms: None provided (Rely on visual examination of anatomical regions, skin, and stance).'}
+${symptoms ? `- Farmer Reported Symptoms: "${symptoms}"` : '- Farmer Reported Symptoms: None provided (Perform thorough visual examination of cutaneous surface, muzzle, eyes, udder, limbs, and posture).'}
 - Gestation Status: ${pregnancyStatus || 'Non-Pregnant (Open)'}
 - Lactation Status: ${lactationStatus || 'Mid Lactation'}
 ${dailyMilkYieldLiters ? `- Daily Milk Yield: ${dailyMilkYieldLiters} Liters/day` : ''}
@@ -191,21 +195,21 @@ ${dailyMilkYieldLiters ? `- Daily Milk Yield: ${dailyMilkYieldLiters} Liters/day
 ${presetBreedHint ? `- Animal Context Hint: ${presetBreedHint}` : ''}
 
 INSPECTION & DIAGNOSTIC DIRECTIVES:
-1. SUBJECT VALIDATION:
-   - Check if the image displays a living livestock animal (cattle / cow, bull, buffalo, calf, goat, sheep), a clinical specimen, or a photographic capture/screen of livestock.
-   - ONLY if the image is an unambiguous, completely non-animal inanimate item with ZERO livestock presence, symptoms, or veterinary context whatsoever (e.g. pure coffee mug, keyboard, car, empty room with no animal):
-     Return ONLY this JSON:
+1. STRICT SUBJECT VALIDATION (LIVING ANIMAL vs NON-LIVING OBJECT):
+   - Check whether this image depicts an actual living livestock animal (cattle, cow, bull, buffalo, calf, goat, sheep), veterinary livestock specimen, or farm animal.
+   - If this image depicts ANY NON-LIVING OBJECT, inanimate product, water bottle, desk, computer, phone, cup, furniture, footwear, vehicle, building wall, blank frame, or non-animal item:
+     You MUST return ONLY this JSON structure with NO disease fields:
      {
        "isNonLivingObject": true,
-       "detectedObject": "<Name of inanimate item, e.g. Office Desk / Coffee Mug / Empty Background>",
+       "detectedObject": "<Exact name of detected non-living item, e.g. Water Bottle / Office Desk / Laptop / Chair / Phone / Cup / Shoes>",
        "rejectionReason": "NON LIVING OBJECT DETECTED",
-       "rejectionMessage": "NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY. Please align the camera with your livestock animal (cattle, buffalo, goat, or sheep) to diagnose disease."
+       "rejectionMessage": "NON LIVING OBJECT DETECTED - PLEASE RETAKE. The scanned image does not contain a livestock animal (cattle, buffalo, goat, or sheep). Please point your camera at the animal and capture again."
      }
 
-2. CLINICAL PATHOLOGY ASSESSMENT:
+2. CLINICAL PATHOLOGY ASSESSMENT (IF LIVESTOCK ANIMAL):
    - Thoroughly inspect all visible anatomical areas: cutaneous surface (nodules, alopecia, crusts, scabs, ticks), oral/muzzle region (vesicles, erosions, drooling), eyes (opacity, lacrimation, redness), udder/teats (swelling, asymmetry), abdomen (left fossa distension / bloat), and posture/spine (kyphosis, hunched stance, recumbency).
    - SYNTHESIZE VISUAL SIGNS WITH REPORTED SYMPTOMS:
-     Weigh both visible features and farmer-reported symptoms. Detect across all major livestock pathologies:
+     Accurately identify all forms of livestock diseases or confirmed healthy status:
      * Lumpy Skin Disease (LSD / Capripoxvirus): 1-5cm firm circumscribed cutaneous nodules on neck/flank/perineum, fever, dull coat.
      * Foot and Mouth Disease (FMD / Aphthovirus): Vesicles or ulcerated erosions on dental pad, tongue, interdigital cleft, stringy salivation, lameness.
      * Clinical Bovine Mastitis: Udder quarter enlargement, swelling, induration, discolored or watery milk, heat.
@@ -307,11 +311,11 @@ INSPECTION & DIAGNOSTIC DIRECTIVES:
           }
           parts.push({ text: prompt });
 
-          // Primary model is gemini-3.1-flash-lite for highest speed and multimodal reliability
+          // Primary models for high-speed multimodal vision
           const candidateModels = [
-            'gemini-3.1-flash-lite',
             'gemini-flash-latest',
-            'gemini-3.8-flash',
+            'gemini-3.1-flash-lite',
+            'gemini-3.6-flash',
           ];
 
           for (const modelName of candidateModels) {
@@ -361,18 +365,22 @@ INSPECTION & DIAGNOSTIC DIRECTIVES:
       }
 
       // Check if the AI vision model explicitly identified an inanimate non-living object
-      if (
-        analysisResult?.isNonLivingObject === true &&
-        !analysisResult?.diseaseIdentified &&
-        !analysisResult?.primaryDiagnosis?.toLowerCase().includes('livestock')
-      ) {
+      const isNonLiving = Boolean(
+        analysisResult?.isNonLivingObject === true ||
+        analysisResult?.rejectionReason === 'NON LIVING OBJECT DETECTED' ||
+        (typeof analysisResult?.rejectionMessage === 'string' && analysisResult.rejectionMessage.toUpperCase().includes('NON LIVING')) ||
+        (typeof analysisResult?.error === 'string' && analysisResult.error.toUpperCase().includes('NON LIVING')) ||
+        (typeof analysisResult?.detectedObject === 'string' && !analysisResult?.detectedSpecies && !analysisResult?.primaryDiagnosis)
+      );
+
+      if (isNonLiving) {
         return res.status(422).json({
           error: 'NON LIVING OBJECT DETECTED',
-          message: analysisResult?.rejectionMessage || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY',
+          message: 'NON LIVING OBJECT DETECTED - PLEASE RETAKE',
           isNonLivingObject: true,
           rejectionReason: 'NON LIVING OBJECT DETECTED',
-          rejectionMessage: analysisResult?.rejectionMessage || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY',
-          detectedObject: analysisResult?.detectedObject || 'Inanimate Item',
+          rejectionMessage: analysisResult?.rejectionMessage || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE',
+          detectedObject: analysisResult?.detectedObject || 'Inanimate Non-Living Item',
         });
       }
 
@@ -1382,7 +1390,10 @@ INSPECTION & DIAGNOSTIC DIRECTIVES:
         ? 'Healthy (No Pathological Disease Detected)'
         : finalPrimaryDiag.replace(/\s*-\s*Clinical Stage.*$/i, '').replace(/\s*-\s*Stage.*$/i, '').trim();
 
-      const diseaseIdentified = analysisResult?.diseaseIdentified || fallbackDiseaseName;
+      let diseaseIdentified = analysisResult?.diseaseIdentified || fallbackDiseaseName;
+      if (!isDiseased || diseaseIdentified.toLowerCase() === 'none' || diseaseIdentified.toLowerCase() === 'n/a') {
+        diseaseIdentified = 'Healthy (No Pathological Disease Detected)';
+      }
 
       // Vernacular common name mapping helper
       const getVernacularName = (disease: string) => {
