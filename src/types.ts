@@ -147,6 +147,7 @@ export interface DiagnosticAssessment {
   diseaseCommonName?: string;
   diseaseStatus?: string;
   diseaseSummaryStatement?: string;
+  audioNarration?: string;
   symptomsObserved?: string[];
   differentialDiagnoses: {
     disease: string;

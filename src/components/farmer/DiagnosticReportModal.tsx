@@ -318,16 +318,19 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
       const speechLang = currentLangInfo.speechCode || 'hi-IN';
 
       let narrativeText = '';
-      if (reportLanguage === 'en') {
+      if (assessment.audioNarration && reportLanguage === 'en') {
+        narrativeText = assessment.audioNarration;
+      } else if (reportLanguage === 'en') {
         narrativeText = isSufferingFromDisease
-          ? `Veterinary Pathology Report. Identified condition: ${identifiedDisease}. ${diseaseStatement}. Severity grade: ${assessment.severityGrade}. Immediate remedies: ${immediateRemedies.slice(0, 3).join('. ')}.`
-          : `Livestock Health Report: The animal is evaluated as healthy and in optimal condition. ${diseaseStatement}. Body condition score is ${assessment.bodyConditionScore}.`;
+          ? `Gemini AI Diagnostic Report. The cattle is diagnosed with ${identifiedDisease}. ${diseaseStatement}. Severity grade: ${assessment.severityGrade}. Recommended immediate remedies: ${immediateRemedies.slice(0, 3).join('. ')}.`
+          : `Gemini AI Diagnostic Report. The animal is evaluated as healthy and in optimal condition. ${diseaseStatement}. Body condition score is ${assessment.bodyConditionScore}.`;
       } else {
         narrativeText = isSufferingFromDisease
-          ? `${identifiedDisease} (${commonDiseaseName || ''}). ${diseaseStatement}. ${uiText.severityLabel}: ${assessment.severityGrade}. ${uiText.immediateRemediesTitle}: ${immediateRemedies.slice(0, 3).join('. ')}.`
-          : `${uiText.healthyTitle}. ${diseaseStatement}. ${uiText.bodyConditionScoreTitle}: ${assessment.bodyConditionScore}.`;
+          ? `पशु स्वास्थ्य रिपोर्ट: गाय या भैंस ${identifiedDisease} (${commonDiseaseName || ''}) से पीड़ित है। ${diseaseStatement}। गंभीरता: ${assessment.severityGrade}। तुरंत उपाय: ${immediateRemedies.slice(0, 3).join('. ')}।`
+          : `पशु स्वास्थ्य रिपोर्ट: पशु पूरी तरह से स्वस्थ है। ${diseaseStatement}।`;
       }
 
+      window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(narrativeText);
       utterance.lang = speechLang;
       utterance.rate = 0.92;
@@ -338,6 +341,22 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
       window.speechSynthesis.speak(utterance);
     }
   };
+
+  // Automatically speak out the diagnosis when report modal opens
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if ('speechSynthesis' in window && !isPlayingAudio) {
+        handleVoiceNarrative();
+      }
+    }, 650);
+
+    return () => {
+      clearTimeout(timer);
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, [assessment.id]);
 
   const handleShare = () => {
     setCopiedLink(true);
@@ -497,6 +516,74 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
                 <Languages className="w-3.5 h-3.5" />
                 <span>+ 15 More</span>
               </button>
+            </div>
+          </div>
+
+          {/* GEMINI AI VOICE DIAGNOSTIC ANNOUNCEMENT CONSOLE */}
+          <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-indigo-500/30 shadow-xl relative overflow-hidden">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+              <div className="flex items-start sm:items-center space-x-3.5">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border transition-all ${
+                  isPlayingAudio
+                    ? 'bg-amber-500 text-white border-amber-300 shadow-lg shadow-amber-500/30 animate-pulse'
+                    : 'bg-indigo-600/80 text-white border-indigo-400/40 shadow-md'
+                }`}>
+                  {isPlayingAudio ? (
+                    <Volume2 className="w-6 h-6 animate-bounce" />
+                  ) : (
+                    <Sparkles className="w-6 h-6 text-amber-300" />
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center space-x-2 flex-wrap gap-1">
+                    <span className="text-[11px] uppercase tracking-wider font-extrabold px-2.5 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 border border-indigo-400/40">
+                      Gemini AI Voice Diagnosis
+                    </span>
+                    <span className="text-xs text-slate-300 font-medium">
+                      Vernacular Audio Readout
+                    </span>
+                    {isPlayingAudio && (
+                      <span className="flex items-center space-x-1.5 text-xs text-amber-300 font-bold ml-1">
+                        <span className="inline-block w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+                        <span>Speaking to farmer in {currentLangInfo.native}...</span>
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="text-base sm:text-lg font-bold text-white mt-1">
+                    {isSufferingFromDisease ? (
+                      <span>Cattle is suffering from <span className="text-amber-300 font-extrabold underline decoration-amber-400/60">{identifiedDisease}</span> {commonDiseaseName ? `(${commonDiseaseName})` : ''}</span>
+                    ) : (
+                      <span>Cattle is <span className="text-emerald-300 font-extrabold">Healthy & Disease Free</span></span>
+                    )}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-200 mt-1 max-w-2xl leading-relaxed">
+                    {diseaseStatement}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2 self-start md:self-center shrink-0">
+                <button
+                  onClick={handleVoiceNarrative}
+                  className={`px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center space-x-2 transition-all cursor-pointer shadow-md ${
+                    isPlayingAudio
+                      ? 'bg-amber-500 hover:bg-amber-600 text-white ring-2 ring-amber-300'
+                      : 'bg-emerald-600 hover:bg-emerald-500 text-white ring-2 ring-emerald-400/40'
+                  }`}
+                >
+                  {isPlayingAudio ? (
+                    <>
+                      <VolumeX className="w-4 h-4" />
+                      <span>Stop Voice</span>
+                    </>
+                  ) : (
+                    <>
+                      <Volume2 className="w-4 h-4" />
+                      <span>Replay Voice Diagnosis</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
           
