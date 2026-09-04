@@ -129,23 +129,23 @@ async function startServer() {
         try {
           // Prepare image payload with robust mime-type detection and remote URL fetching
           let imagePart: any;
-          if (image.startsWith('data:image')) {
-            const matches = image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-            if (matches && matches.length === 3) {
-              let mime = matches[1].toLowerCase();
-              if (mime.includes('png')) mime = 'image/png';
-              else if (mime.includes('webp')) mime = 'image/webp';
-              else if (mime.includes('heic')) mime = 'image/heic';
-              else mime = 'image/jpeg';
+          if (typeof image === 'string' && image.includes(';base64,')) {
+            const spl = image.split(';base64,');
+            const mimeMatch = spl[0].match(/data:([A-Za-z-+\/]+)/);
+            let mime = mimeMatch ? mimeMatch[1].toLowerCase() : 'image/jpeg';
+            if (mime.includes('png')) mime = 'image/png';
+            else if (mime.includes('webp')) mime = 'image/webp';
+            else if (mime.includes('heic')) mime = 'image/heic';
+            else mime = 'image/jpeg';
 
-              imagePart = {
-                inlineData: {
-                  mimeType: mime,
-                  data: matches[2],
-                },
-              };
-            }
-          } else if (image.startsWith('http://') || image.startsWith('https://')) {
+            const cleanBase64 = spl[1].replace(/[\r\n\s]/g, '');
+            imagePart = {
+              inlineData: {
+                mimeType: mime,
+                data: cleanBase64,
+              },
+            };
+          } else if (typeof image === 'string' && (image.startsWith('http://') || image.startsWith('https://'))) {
             // Preset catalog or external image URL -> fetch and supply inlineData
             try {
               const fetchResp = await fetch(image);
@@ -338,11 +338,11 @@ Return strictly a JSON object with this format:
           }
           parts.push({ text: prompt });
 
-          // Multi-model tier prioritizing responsive Flash models with graceful fallback for high demand (503)
+          // Multi-model tier prioritizing gemini-3.8-flash multimodal vision with graceful fallbacks
           const candidateModels = [
-            'gemini-3.1-flash-lite',
-            'gemini-flash-latest',
             'gemini-3.8-flash',
+            'gemini-flash-latest',
+            'gemini-3.1-flash-lite',
           ];
 
           for (const modelName of candidateModels) {
@@ -402,13 +402,15 @@ Return strictly a JSON object with this format:
       }
 
       // Check explicit non-living object rejection from Gemini vision
-      // Only reject if vision AI verified an inanimate item AND did NOT detect an animal
       const isConfirmedNonLiving =
-        analysisResult?.isNonLivingObject === true &&
-        !analysisResult?.isDiseased &&
-        !['cattle', 'cow', 'bull', 'buffalo', 'goat', 'sheep', 'calf'].includes(
-          String(analysisResult?.detectedSpecies || '').toLowerCase()
-        );
+        analysisResult?.isNonLivingObject === true ||
+        analysisResult?.isLivingLivestock === false ||
+        analysisResult?.isLivingAnimal === false ||
+        (typeof analysisResult?.rejectionReason === 'string' &&
+          /non.?living|inanimate|unrecognizable|not livestock|not cattle|not a cow|no animal/i.test(analysisResult.rejectionReason)) ||
+        (typeof analysisResult?.detectedObject === 'string' &&
+          !/cattle|cow|bull|ox|buffalo|calf|goat|sheep|livestock/i.test(analysisResult.detectedObject) &&
+          /desk|bottle|phone|laptop|wall|table|chair|shoe|paper|hand|mug|cup|screen|car|bike|ceiling|floor|person|human|dog|cat/i.test(analysisResult.detectedObject));
 
       if (isConfirmedNonLiving) {
         return res.status(422).json({
@@ -416,13 +418,32 @@ Return strictly a JSON object with this format:
           message: 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY',
           isNonLivingObject: true,
           rejectionReason: 'NON LIVING OBJECT DETECTED',
-          rejectionMessage: 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY. The uploaded frame does not show a living cattle or livestock animal.',
+          rejectionMessage: analysisResult?.rejectionMessage || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY. The uploaded frame does not show a living cattle or livestock animal.',
           detectedObject: analysisResult?.detectedObject || 'Inanimate Non-Livestock Item'
         });
       }
 
-      // If Gemini vision model was not reached or returned empty, seamlessly activate the clinical pathology knowledge engine
+      // If Gemini vision model was not reached or returned empty
       if (!analysisResult) {
+        // If this is a live camera capture or custom photo upload, DO NOT generate a fake cattle diagnosis!
+        if (!isPreset && scanMode !== 'preset') {
+          if (!process.env.GEMINI_API_KEY) {
+            return res.status(503).json({
+              error: 'GEMINI_API_KEY_REQUIRED',
+              message: 'Gemini AI Vision API key is not configured in environment variables on your deployment. Please configure GEMINI_API_KEY in your hosting environment (e.g. Render Dashboard -> Environment) to scan live photos, or use the Diagnostic Presets tab.',
+            });
+          }
+
+          // If Gemini was configured but failed or timed out on an unverified frame
+          return res.status(422).json({
+            error: 'NON LIVING OBJECT DETECTED',
+            message: 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY',
+            isNonLivingObject: true,
+            rejectionReason: 'NON LIVING OBJECT DETECTED',
+            rejectionMessage: 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY. The visual scanner could not confirm a living livestock animal in the captured frame. Please point the camera directly at the cattle with clear lighting and retake.',
+            detectedObject: 'Unconfirmed / Inanimate Subject'
+          });
+        }
         const symptomsLower = (symptoms || '').toLowerCase();
         const speciesLower = (species || '').toLowerCase();
         const presetLower = (presetBreedHint || '').toLowerCase();

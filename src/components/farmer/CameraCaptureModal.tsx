@@ -208,6 +208,54 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+
+        // Pre-check for blank/dark frames
+        try {
+          const w = canvas.width;
+          const h = canvas.height;
+          const stepX = Math.max(1, Math.floor(w / 16));
+          const stepY = Math.max(1, Math.floor(h / 16));
+          const imgData = ctx.getImageData(0, 0, w, h);
+          const data = imgData.data;
+          let sumLum = 0;
+          let count = 0;
+          const samples: number[] = [];
+          for (let y = 0; y < h; y += stepY) {
+            for (let x = 0; x < w; x += stepX) {
+              const idx = (y * w + x) * 4;
+              const lum = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+              samples.push(lum);
+              sumLum += lum;
+              count++;
+            }
+          }
+          if (count > 0) {
+            const avg = sumLum / count;
+            const variance = samples.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / count;
+            const stdDev = Math.sqrt(variance);
+            if (avg < 14) {
+              setRejectionData({
+                title: 'NON LIVING OBJECT DETECTED',
+                message: 'PLEASE RETAKE PROPERLY',
+                detectedObject: 'Pitch Black / Lens Covered',
+                details: 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY. The camera frame is completely dark. Please ensure the lens is uncovered and adequate lighting is provided.'
+              });
+              return null;
+            }
+            if (stdDev < 5.0) {
+              setRejectionData({
+                title: 'NON LIVING OBJECT DETECTED',
+                message: 'PLEASE RETAKE PROPERLY',
+                detectedObject: 'Solid Blank Uniform Surface',
+                details: 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY. The camera is pointing at a flat uniform surface without livestock. Please aim the camera directly at the animal.'
+              });
+              return null;
+            }
+          }
+        } catch (sampleErr) {
+          // Ignore canvas sampling error if any
+        }
+
         return canvas.toDataURL('image/jpeg', 0.92);
       }
     } catch (e) {
@@ -387,13 +435,22 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
       console.warn('Livestock scanner rejection note:', err);
       setIsProcessing(false);
       
-      // Strict rejection modal display for non-living objects
-      setRejectionData({
-        title: 'NON LIVING OBJECT DETECTED',
-        message: 'PLEASE RETAKE PROPERLY',
-        detectedObject: err?.detectedObject || 'Inanimate / Non-livestock item',
-        details: err?.rejectionMessage || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY. The uploaded picture does not contain a living livestock animal (cattle, buffalo, goat, or sheep). Please position the animal inside the camera reticle and take a clear photo.'
-      });
+      if (err?.message?.includes('GEMINI_API_KEY_REQUIRED') || err?.message?.includes('API key')) {
+        setRejectionData({
+          title: 'GEMINI API KEY REQUIRED',
+          message: 'DEPLOYMENT CONFIGURATION NOTICE',
+          detectedObject: 'Render / Hosting Environment',
+          details: err?.message || 'To analyze live camera photos on your deployed app, please set GEMINI_API_KEY in your hosting environment variables (e.g. Render Dashboard -> Environment).'
+        });
+      } else {
+        // Strict rejection modal display for non-living objects
+        setRejectionData({
+          title: 'NON LIVING OBJECT DETECTED',
+          message: 'PLEASE RETAKE PROPERLY',
+          detectedObject: err?.detectedObject || 'Inanimate / Non-livestock item',
+          details: err?.rejectionMessage || err?.message || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY. The visual scanner could not confirm a living livestock animal (cattle, buffalo, goat, or sheep) in the frame. Please align the cattle clearly inside the camera reticle with adequate lighting and retake.'
+        });
+      }
     }
   };
 
@@ -457,6 +514,9 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
               onClick={() => {
                 setActiveMode('preset');
                 setCapturedLivePhoto(null);
+                if (!symptomsText.trim()) {
+                  setSymptomsText(selectedPreset.symptoms);
+                }
               }}
               className={`py-2 px-3 rounded-lg flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
                 activeMode === 'preset'
@@ -470,6 +530,9 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
 
             <button
               onClick={() => {
+                if (symptomsText === selectedPreset.symptoms) {
+                  setSymptomsText('');
+                }
                 setActiveMode('live');
               }}
               className={`py-2 px-3 rounded-lg flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
@@ -484,6 +547,9 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
 
             <button
               onClick={() => {
+                if (symptomsText === selectedPreset.symptoms) {
+                  setSymptomsText('');
+                }
                 setActiveMode('upload');
                 setCapturedLivePhoto(null);
               }}

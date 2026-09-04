@@ -35,18 +35,25 @@ export async function runLivestockAssessment(params: {
       console.warn('API response json parse notice:', parseErr);
     }
 
-    if (!response.ok || !data || data.isNonLivingObject) {
-      if (data?.isNonLivingObject) {
+    const isNonLivingRejection = 
+      response.status === 422 ||
+      data?.isNonLivingObject === true ||
+      data?.error === 'NON LIVING OBJECT DETECTED' ||
+      (typeof data?.rejectionReason === 'string' && data.rejectionReason.includes('NON LIVING')) ||
+      (typeof data?.message === 'string' && data.message.includes('NON LIVING'));
+
+    if (!response.ok || !data || isNonLivingRejection) {
+      if (isNonLivingRejection) {
         const err: any = new Error(
-          data.message || data.rejectionMessage || data.error || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY'
+          data?.message || data?.rejectionMessage || data?.error || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY'
         );
         err.isNonLivingObject = true;
-        err.detectedObject = data.detectedObject || 'Inanimate Non-Livestock Item';
-        err.rejectionReason = data.rejectionReason || 'NON LIVING OBJECT DETECTED';
-        err.rejectionMessage = data.rejectionMessage || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY';
+        err.detectedObject = data?.detectedObject || 'Inanimate Non-Livestock Item';
+        err.rejectionReason = data?.rejectionReason || 'NON LIVING OBJECT DETECTED';
+        err.rejectionMessage = data?.rejectionMessage || data?.message || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY';
         throw err;
       }
-      throw new Error(data?.error || `Server responded with status ${response.status}`);
+      throw new Error(data?.message || data?.error || `Server responded with status ${response.status}`);
     }
 
     // Ensure all critical array fields and sub-objects exist on data
@@ -111,13 +118,21 @@ export async function runLivestockAssessment(params: {
       },
     };
   } catch (err: any) {
-    if (err?.isNonLivingObject) {
+    if (err?.isNonLivingObject || (typeof err?.message === 'string' && err.message.includes('NON LIVING'))) {
       // Re-throw genuine non-living object rejection from server vision discriminator
+      const rejectionErr: any = err;
+      rejectionErr.isNonLivingObject = true;
+      throw rejectionErr;
+    }
+
+    // For live camera captures or user uploaded photos, do NOT mask failures with fake cattle diagnosis!
+    if (!params.isPreset && params.scanMode !== 'preset') {
+      console.error('Livestock live assessment notice:', err);
       throw err;
     }
 
-    console.warn('API call notice, generating high-precision domain diagnosis:', err);
-    // Graceful offline/deployment fallback based on actual symptoms, species, or presets
+    console.warn('API call notice, generating high-precision domain diagnosis for preset demo:', err);
+    // Graceful offline fallback exclusively for curated preset demo animals
     const symptomsLower = (params.symptoms || '').toLowerCase();
     const speciesLower = (params.species || '').toLowerCase();
     const presetLower = (params.presetBreedHint || '').toLowerCase();
