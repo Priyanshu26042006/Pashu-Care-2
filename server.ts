@@ -331,9 +331,8 @@ Return strictly a JSON object with this format:
           // Multi-model tier prioritizing responsive Flash models with graceful fallback for high demand (503)
           const candidateModels = [
             'gemini-3.1-flash-lite',
-            'gemini-3.8-flash',
-            'gemini-3.7-flash',
             'gemini-flash-latest',
+            'gemini-3.8-flash',
           ];
 
           for (const modelName of candidateModels) {
@@ -367,7 +366,7 @@ Return strictly a JSON object with this format:
                 }
               } catch (modelErr: any) {
                 const errMsg = modelErr?.message || String(modelErr);
-                const isHighDemand = errMsg.includes('503') || errMsg.includes('high demand') || errMsg.includes('429') || errMsg.includes('quota');
+                const isHighDemand = errMsg.includes('503') || errMsg.includes('high demand') || errMsg.includes('429') || errMsg.includes('quota') || modelErr?.status === 503 || modelErr?.status === 429;
                 if (attempts < maxAttempts && isHighDemand) {
                   // Exponential backoff for temporary load spikes
                   await new Promise((resolve) => setTimeout(resolve, 400 * attempts));
@@ -380,8 +379,8 @@ Return strictly a JSON object with this format:
 
             if (analysisResult) break;
           }
-        } catch (geminiError) {
-          console.warn('Gemini vision engine notice, activating smart domain knowledge engine:', geminiError);
+        } catch (geminiError: any) {
+          console.warn('Gemini vision engine notice, activating smart domain knowledge engine:', geminiError?.message || 'Vision model fallback');
         }
       }
 
@@ -1597,8 +1596,8 @@ Return strictly a valid JSON object with the following structure:
 
           const candidateModels = [
             'gemini-3.1-flash-lite',
-            'gemini-3.7-flash',
             'gemini-flash-latest',
+            'gemini-3.8-flash',
           ];
 
           for (const modelName of candidateModels) {
@@ -1629,7 +1628,7 @@ Return strictly a valid JSON object with the following structure:
                 }
               } catch (err: any) {
                 const errMsg = err?.message || String(err);
-                const isHighDemand = errMsg.includes('503') || errMsg.includes('high demand') || errMsg.includes('429') || errMsg.includes('quota');
+                const isHighDemand = errMsg.includes('503') || errMsg.includes('high demand') || errMsg.includes('429') || errMsg.includes('quota') || err?.status === 503 || err?.status === 429;
                 if (attempts < maxAttempts && isHighDemand) {
                   await new Promise((resolve) => setTimeout(resolve, 400 * attempts));
                 } else {
@@ -1826,40 +1825,56 @@ OUTPUT FORMAT: Return strictly a valid JSON object matching this schema (do NOT 
 }`;
 
           const candidateModels = [
-            'gemini-3.8-flash',
             'gemini-3.1-flash-lite',
             'gemini-flash-latest',
+            'gemini-3.8-flash',
           ];
 
           for (const modelName of candidateModels) {
-            try {
-              const response = await ai.models.generateContent({
-                model: modelName,
-                contents: [{ text: prompt }],
-                config: {
-                  responseMimeType: 'application/json',
-                  temperature: 0.1,
-                },
-              });
+            let attempts = 0;
+            const maxAttempts = 2;
 
-              if (response.text) {
-                let cleaned = response.text.trim();
-                if (cleaned.startsWith('```json')) {
-                  cleaned = cleaned.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-                } else if (cleaned.startsWith('```')) {
-                  cleaned = cleaned.replace(/^```\s*/, '').replace(/\s*```$/, '');
+            while (attempts < maxAttempts && !translationResult) {
+              attempts++;
+              try {
+                const response = await ai.models.generateContent({
+                  model: modelName,
+                  contents: [{ text: prompt }],
+                  config: {
+                    responseMimeType: 'application/json',
+                    temperature: 0.1,
+                  },
+                });
+
+                if (response.text) {
+                  let cleaned = response.text.trim();
+                  if (cleaned.startsWith('```json')) {
+                    cleaned = cleaned.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+                  } else if (cleaned.startsWith('```')) {
+                    cleaned = cleaned.replace(/^```\s*/, '').replace(/\s*```$/, '');
+                  }
+                  translationResult = JSON.parse(cleaned);
+                  if (translationResult && translationResult.diseaseSummaryStatement) {
+                    break;
+                  }
                 }
-                translationResult = JSON.parse(cleaned);
-                if (translationResult && translationResult.diseaseSummaryStatement) {
+              } catch (err: any) {
+                const errMsg = err?.message || String(err);
+                const isHighDemand = errMsg.includes('503') || errMsg.includes('high demand') || errMsg.includes('429') || errMsg.includes('quota') || err?.status === 503 || err?.status === 429;
+                if (attempts < maxAttempts && isHighDemand) {
+                  await new Promise((resolve) => setTimeout(resolve, 400 * attempts));
+                } else {
                   break;
                 }
               }
-            } catch (err) {
-              console.warn(`Translation attempt on ${modelName} notice:`, err);
+            }
+
+            if (translationResult && translationResult.diseaseSummaryStatement) {
+              break;
             }
           }
         } catch (genErr) {
-          console.warn('Gemini report translation notice:', genErr);
+          // Quietly fall through to vernacular dictionary fallback
         }
       }
 
