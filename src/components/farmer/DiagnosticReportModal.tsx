@@ -242,82 +242,81 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
     };
   }, []);
 
-  if (!assessment) return null;
-
   const currentLangInfo = getLanguageInfo(reportLanguage);
   const uiText = getReportUIText(reportLanguage);
 
   const envMapsKey = getStoredGoogleMapsApiKey();
   const hasValidGoogleMapsKey = isValidGoogleMapsKey(envMapsKey) && !mapAuthFailed;
 
-  const isSufferingFromDisease = assessment.isDiseased ?? (
+  const isSufferingFromDisease = assessment ? (assessment.isDiseased ?? (
     !/healthy|normal|no active|no pathological|optimal/i.test(assessment.primaryDiagnosis || '') ||
     assessment.severityGrade === 'Emergency Quarantine' ||
     assessment.severityGrade === 'Severe' ||
     assessment.severityGrade === 'Moderate'
-  );
+  )) : false;
 
-  const identifiedDisease = translatedFields?.diseaseIdentified || assessment.diseaseIdentified || (
+  const identifiedDisease = translatedFields?.diseaseIdentified || assessment?.diseaseIdentified || (
     isSufferingFromDisease
-      ? (assessment.primaryDiagnosis || 'Active Clinical Condition').replace(/\s*-\s*Clinical Stage.*$/i, '').replace(/\s*-\s*Stage.*$/i, '').trim()
+      ? (assessment?.primaryDiagnosis || 'Active Clinical Condition').replace(/\s*-\s*Clinical Stage.*$/i, '').replace(/\s*-\s*Stage.*$/i, '').trim()
       : 'Healthy (No Disease Detected)'
   );
 
-  const commonDiseaseName = translatedFields?.diseaseCommonName || assessment.diseaseCommonName;
-  const diseaseStatusLabel = translatedFields?.diseaseStatus || assessment.diseaseStatus || (
+  const commonDiseaseName = translatedFields?.diseaseCommonName || assessment?.diseaseCommonName;
+  const diseaseStatusLabel = translatedFields?.diseaseStatus || assessment?.diseaseStatus || (
     isSufferingFromDisease
-      ? (assessment.severityGrade === 'Emergency Quarantine' ? 'Critical Outbreak Alert' : 'Active Clinical Condition')
+      ? (assessment?.severityGrade === 'Emergency Quarantine' ? 'Critical Outbreak Alert' : 'Active Clinical Condition')
       : 'Healthy Livestock Confirmed'
   );
 
-  const diseaseStatement = translatedFields?.diseaseSummaryStatement || assessment.diseaseSummaryStatement || (
+  const diseaseStatement = translatedFields?.diseaseSummaryStatement || assessment?.diseaseSummaryStatement || (
     isSufferingFromDisease
-      ? `The cattle is suffering from ${identifiedDisease} (${assessment.severityGrade || 'Clinical'} Grade). Prompt isolation, veterinary evaluation, and supportive intervention recommended.`
+      ? `The cattle is suffering from ${identifiedDisease} (${assessment?.severityGrade || 'Clinical'} Grade). Prompt isolation, veterinary evaluation, and supportive intervention recommended.`
       : 'The cattle is evaluated as Healthy with no visible clinical pathology or infectious lesions detected. Normal coat luster, clear eyes and muzzle, and balanced conformation observed.'
   );
 
   const observedSymptomsList = (translatedFields?.symptomsObserved && Array.isArray(translatedFields.symptomsObserved) && translatedFields.symptomsObserved.length > 0)
     ? translatedFields.symptomsObserved
-    : (Array.isArray(assessment.symptomsObserved) && assessment.symptomsObserved.length > 0)
-      ? assessment.symptomsObserved
-      : (Array.isArray(assessment.lesions) && assessment.lesions.length > 0)
-        ? assessment.lesions.map(l => `${l.label} (${l.anatomicalLocation || 'Skin'})`)
+    : (Array.isArray(assessment?.symptomsObserved) && (assessment?.symptomsObserved.length || 0) > 0)
+      ? (assessment?.symptomsObserved || [])
+      : (Array.isArray(assessment?.lesions) && (assessment?.lesions.length || 0) > 0)
+        ? (assessment?.lesions || []).map(l => `${l.label} (${l.anatomicalLocation || 'Skin'})`)
         : isSufferingFromDisease
           ? ['Cutaneous lesions or postural discomfort observed during camera scan']
           : ['Clear eyes and moist muzzle perspiration', 'Smooth, glossy coat without lesions', 'Alert upright posture and symmetrical gait'];
 
   const immediateRemedies = (translatedFields?.immediateRemedies && Array.isArray(translatedFields.immediateRemedies) && translatedFields.immediateRemedies.length > 0)
     ? translatedFields.immediateRemedies
-    : (Array.isArray(assessment.immediateRemedies) && assessment.immediateRemedies.length > 0)
-      ? assessment.immediateRemedies
+    : (Array.isArray(assessment?.immediateRemedies) && (assessment?.immediateRemedies.length || 0) > 0)
+      ? (assessment?.immediateRemedies || [])
       : ['Isolate the cattle in a shaded, well-ventilated enclosure.', 'Provide clean drinking water with electrolyte salts.', 'Contact the nearest Veterinary Officer or 1962 Mobile Veterinary Unit.'];
 
   const recommendedVeterinaryActions = (translatedFields?.recommendedVeterinaryActions && Array.isArray(translatedFields.recommendedVeterinaryActions) && translatedFields.recommendedVeterinaryActions.length > 0)
     ? translatedFields.recommendedVeterinaryActions
-    : (Array.isArray(assessment.recommendedVeterinaryActions) && assessment.recommendedVeterinaryActions.length > 0)
-      ? assessment.recommendedVeterinaryActions
+    : (Array.isArray(assessment?.recommendedVeterinaryActions) && (assessment?.recommendedVeterinaryActions.length || 0) > 0)
+      ? (assessment?.recommendedVeterinaryActions || [])
       : ['Clinical examination by registered veterinarian within 24 hours.', 'Prescribed supportive and biosecurity measures.'];
 
   const pregnancyRiskNotes = translatedFields?.pregnancyRiskNotes || 
-    assessment.reproductiveAndLactationAlerts?.pregnancyRiskNotes || 
-    `Animal evaluated under ${assessment.pregnancyStatus || 'Gestational'} protocol. Maintain pyrexia control below 103.5°F.`;
+    assessment?.reproductiveAndLactationAlerts?.pregnancyRiskNotes || 
+    `Animal evaluated under ${assessment?.pregnancyStatus || 'Gestational'} protocol. Maintain pyrexia control below 103.5°F.`;
 
   const lactationImpact = translatedFields?.lactationImpact || 
-    assessment.milkYieldImpact || 
-    assessment.reproductiveAndLactationAlerts?.lactationImpact || 
-    `Daily milk yield monitoring indicated under ${assessment.lactationStatus || 'active lactation'} protocol.`;
+    assessment?.milkYieldImpact || 
+    assessment?.reproductiveAndLactationAlerts?.lactationImpact || 
+    `Daily milk yield monitoring indicated under ${assessment?.lactationStatus || 'active lactation'} protocol.`;
 
   const drugContraindications = (translatedFields?.drugContraindications && Array.isArray(translatedFields.drugContraindications) && translatedFields.drugContraindications.length > 0)
     ? translatedFields.drugContraindications
-    : (Array.isArray(assessment.reproductiveAndLactationAlerts?.drugContraindications) ? (assessment.reproductiveAndLactationAlerts?.drugContraindications || []) : []);
+    : (Array.isArray(assessment?.reproductiveAndLactationAlerts?.drugContraindications) ? (assessment?.reproductiveAndLactationAlerts?.drugContraindications || []) : []);
 
   const nutritionalRecommendation = translatedFields?.nutritionalRecommendation || 
-    assessment.reproductiveAndLactationAlerts?.nutritionalRecommendation;
+    assessment?.reproductiveAndLactationAlerts?.nutritionalRecommendation;
 
-  const coatCondition = translatedFields?.coatCondition || assessment.coatCondition;
+  const coatCondition = translatedFields?.coatCondition || assessment?.coatCondition;
 
   // Text to Speech narrative for rural farmers in their preferred report language
   const handleVoiceNarrative = () => {
+    if (!assessment) return;
     try {
       if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
         return;
@@ -364,6 +363,7 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
 
   // Automatically speak out the diagnosis when report modal opens
   useEffect(() => {
+    if (!assessment) return;
     const timer = setTimeout(() => {
       try {
         if (typeof window !== 'undefined' && 'speechSynthesis' in window && !isPlayingAudio) {
@@ -384,7 +384,9 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
         // ignore
       }
     };
-  }, [assessment.id]);
+  }, [assessment?.id]);
+
+  if (!assessment) return null;
 
   const handleShare = () => {
     setCopiedLink(true);

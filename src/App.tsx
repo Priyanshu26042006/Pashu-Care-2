@@ -348,37 +348,42 @@ export default function App() {
       />
 
       {/* Diagnostic Report Modal */}
-      <ErrorBoundary
-        fallbackTitle="Clinical Report Display Notice"
-        fallbackMessage="An unexpected issue occurred while rendering the clinical report. You can close and reopen it from the recent history."
-        onReset={() => setSelectedAssessment(null)}
-      >
-        <DiagnosticReportModal
-          assessment={selectedAssessment}
-          onClose={() => setSelectedAssessment(null)}
-          language={language}
-          onLanguageChange={setLanguage}
-          onFlagForOfficerReview={handleFlagForOfficerReview}
-          animals={animals}
-          currentUser={currentUser}
-          onCreateSeparateReport={handleCreateSeparateReport}
-        />
-      </ErrorBoundary>
+      {selectedAssessment && (
+        <ErrorBoundary
+          key={selectedAssessment.id}
+          fallbackTitle="Clinical Report Display Notice"
+          fallbackMessage="An unexpected issue occurred while rendering the clinical report. You can close and reopen it from the recent history."
+          onReset={() => setSelectedAssessment(null)}
+        >
+          <DiagnosticReportModal
+            assessment={selectedAssessment}
+            onClose={() => setSelectedAssessment(null)}
+            language={language}
+            onLanguageChange={setLanguage}
+            onFlagForOfficerReview={handleFlagForOfficerReview}
+            animals={animals}
+            currentUser={currentUser}
+            onCreateSeparateReport={handleCreateSeparateReport}
+          />
+        </ErrorBoundary>
+      )}
 
       {/* Animal Detail Modal */}
-      <AnimalDetailModal
-        animal={selectedAnimal}
-        onClose={() => setSelectedAnimal(null)}
-        onScanThisAnimal={(anim) => {
-          setSelectedAnimal(null);
-          setIsCameraOpen(true);
-        }}
-        onViewDiagnosticReport={(id) => {
-          const match = assessments.find((a) => a.animalId === selectedAnimal?.id) || assessments[0];
-          setSelectedAssessment(match);
-        }}
-        language={language}
-      />
+      {selectedAnimal && (
+        <AnimalDetailModal
+          animal={selectedAnimal}
+          onClose={() => setSelectedAnimal(null)}
+          onScanThisAnimal={(anim) => {
+            setSelectedAnimal(null);
+            setIsCameraOpen(true);
+          }}
+          onViewDiagnosticReport={(id) => {
+            const match = assessments.find((a) => a.animalId === selectedAnimal?.id) || assessments[0];
+            setSelectedAssessment(match);
+          }}
+          language={language}
+        />
+      )}
 
       {/* Bottom Footer */}
       <footer className="border-t border-slate-200 bg-white py-6 px-4 text-xs text-slate-500 text-center space-y-1.5 mt-auto">
