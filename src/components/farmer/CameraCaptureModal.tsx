@@ -234,7 +234,39 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
     if (file) {
       const reader = new FileReader();
       reader.onload = (event) => {
-        setUploadedImage(event.target?.result as string);
+        const rawUrl = event.target?.result as string;
+        if (!rawUrl) return;
+
+        // Downscale image via canvas to max 1280px to ensure fast transfer and prevent payload overflow
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 1280;
+          let w = img.width;
+          let h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            } else {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, w, h);
+            setUploadedImage(canvas.toDataURL('image/jpeg', 0.88));
+          } else {
+            setUploadedImage(rawUrl);
+          }
+        };
+        img.onerror = () => {
+          setUploadedImage(rawUrl);
+        };
+        img.src = rawUrl;
       };
       reader.readAsDataURL(file);
     }

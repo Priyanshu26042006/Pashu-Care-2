@@ -14,6 +14,7 @@ import { LoginScreen, DEMO_FARMERS, DEMO_VETS } from './components/auth/LoginScr
 import { AnimalProfile, AuthUser, CattleFormalReport, DiagnosticAssessment, SupportedLanguage, UserRole } from './types';
 import { INITIAL_ANIMAL_PROFILES, INITIAL_ASSESSMENTS } from './data/mockLivestockData';
 import { CheckCircle2, ShieldAlert } from 'lucide-react';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 const STORAGE_KEY_USER = 'gausehat_current_user_session';
 
@@ -99,20 +100,24 @@ export default function App() {
   };
 
   const handleAssessmentComplete = (newAssessment: DiagnosticAssessment) => {
+    if (!newAssessment) return;
     setAssessments((prev) => [newAssessment, ...prev]);
+
+    const predictedBreedSafe = newAssessment.predictedBreed || 'Gir (Bos indicus)';
+    const firstBreedWord = predictedBreedSafe.split(' ')[0]?.toLowerCase() || '';
 
     // Update or add corresponding animal profile
     setAnimals((prev) => {
       const matchIndex = prev.findIndex(
-        (a) => a.id === newAssessment.animalId || a.breed.toLowerCase().includes(newAssessment.predictedBreed.split(' ')[0].toLowerCase())
+        (a) => a.id === newAssessment.animalId || (a.breed && firstBreedWord && a.breed.toLowerCase().includes(firstBreedWord))
       );
       if (matchIndex >= 0) {
         const updated = [...prev];
         const current = updated[matchIndex];
         updated[matchIndex] = {
           ...current,
-          lastAssessmentDate: newAssessment.timestamp,
-          bodyConditionScore: newAssessment.bodyConditionScore,
+          lastAssessmentDate: newAssessment.timestamp || new Date().toISOString(),
+          bodyConditionScore: Number(newAssessment.bodyConditionScore) || current.bodyConditionScore || 3.2,
           currentStatus: newAssessment.severityGrade === 'Emergency Quarantine'
             ? 'Critical / Flagged'
             : newAssessment.severityGrade === 'Severe'
@@ -120,36 +125,42 @@ export default function App() {
             : newAssessment.severityGrade === 'Moderate'
             ? 'Moderate Concern'
             : 'Healthy',
-          assessmentsCount: current.assessmentsCount + 1,
+          assessmentsCount: (current.assessmentsCount || 1) + 1,
         };
         return updated;
       } else {
+        const safeGps = newAssessment.gpsMetadata || {
+          lat: 21.5222,
+          lng: 70.4579,
+          district: 'Satara',
+          state: 'Maharashtra',
+        };
         // Create new animal profile record
         const newAnimal: AnimalProfile = {
-          id: newAssessment.animalId,
+          id: newAssessment.animalId || `anim-${Date.now().toString(36)}`,
           earTagNumber: `IN-DLM-${Math.floor(1000 + Math.random() * 9000)}`,
-          name: `${newAssessment.predictedBreed.split(' ')[0]} Specimen`,
+          name: `${predictedBreedSafe.split(' ')[0] || 'Livestock'} Specimen`,
           species: (newAssessment.detectedSpecies as any) || 'Cattle',
-          breed: newAssessment.predictedBreed,
+          breed: predictedBreedSafe,
           estimatedAgeMonths: 36,
           gender: 'Female',
           weightKg: 420,
           ownerName: currentUser?.role === 'farmer' ? currentUser.name : 'Registered Livestock Farmer',
           ownerContact: currentUser?.phone || '+91 98000 00000',
           ownerVillage: currentUser?.village || 'Field Station',
-          district: newAssessment.gpsMetadata.district || currentUser?.district || 'Satara',
-          state: newAssessment.gpsMetadata.state || currentUser?.state || 'Maharashtra',
+          district: safeGps.district || currentUser?.district || 'Satara',
+          state: safeGps.state || currentUser?.state || 'Maharashtra',
           gpsLocation: {
-            lat: newAssessment.gpsMetadata.lat,
-            lng: newAssessment.gpsMetadata.lng,
-            timestamp: newAssessment.timestamp,
+            lat: Number(safeGps.lat) || 21.5222,
+            lng: Number(safeGps.lng) || 70.4579,
+            timestamp: newAssessment.timestamp || new Date().toISOString(),
           },
           currentStatus: newAssessment.severityGrade === 'Emergency Quarantine' || newAssessment.severityGrade === 'Severe'
             ? 'Critical / Flagged'
             : 'Moderate Concern',
-          lastAssessmentDate: newAssessment.timestamp,
-          thumbnailUrl: newAssessment.imageUrl,
-          bodyConditionScore: newAssessment.bodyConditionScore,
+          lastAssessmentDate: newAssessment.timestamp || new Date().toISOString(),
+          thumbnailUrl: newAssessment.imageUrl || 'https://images.unsplash.com/photo-1546445317-29f4545e9d53?auto=format&fit=crop&w=1000&q=80',
+          bodyConditionScore: Number(newAssessment.bodyConditionScore) || 3.2,
           vaccinations: [
             { name: 'FMD Oil Adjuvant Vaccine', date: '2026-02-10', nextDueDate: '2026-08-10', batchNo: 'FMD-IN-901' }
           ],
@@ -337,16 +348,22 @@ export default function App() {
       />
 
       {/* Diagnostic Report Modal */}
-      <DiagnosticReportModal
-        assessment={selectedAssessment}
-        onClose={() => setSelectedAssessment(null)}
-        language={language}
-        onLanguageChange={setLanguage}
-        onFlagForOfficerReview={handleFlagForOfficerReview}
-        animals={animals}
-        currentUser={currentUser}
-        onCreateSeparateReport={handleCreateSeparateReport}
-      />
+      <ErrorBoundary
+        fallbackTitle="Clinical Report Display Notice"
+        fallbackMessage="An unexpected issue occurred while rendering the clinical report. You can close and reopen it from the recent history."
+        onReset={() => setSelectedAssessment(null)}
+      >
+        <DiagnosticReportModal
+          assessment={selectedAssessment}
+          onClose={() => setSelectedAssessment(null)}
+          language={language}
+          onLanguageChange={setLanguage}
+          onFlagForOfficerReview={handleFlagForOfficerReview}
+          animals={animals}
+          currentUser={currentUser}
+          onCreateSeparateReport={handleCreateSeparateReport}
+        />
+      </ErrorBoundary>
 
       {/* Animal Detail Modal */}
       <AnimalDetailModal

@@ -145,7 +145,7 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
     assessment?.animalId || (animals.length > 0 ? animals[0].id : '')
   );
   const [customReportTitle, setCustomReportTitle] = useState(
-    assessment ? `Clinical Health Dossier: ${assessment.primaryDiagnosis.split('-')[0].trim()}` : 'Bovine Health & Assessment Dossier'
+    assessment ? `Clinical Health Dossier: ${(assessment.primaryDiagnosis || 'Cattle Health Assessment').split('-')[0].trim()}` : 'Bovine Health & Assessment Dossier'
   );
   const [customReportNotes, setCustomReportNotes] = useState(
     'Specimen inspected following automated biometric scan. Symptoms and visual lesions recorded for official veterinary herd dossier.'
@@ -161,17 +161,23 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
     country: string;
     isLive: boolean;
   }>({
-    locationName: assessment?.gpsMetadata.locationName || '',
-    district: assessment?.gpsMetadata.district || 'Junagadh',
-    state: assessment?.gpsMetadata.state || 'Gujarat',
-    country: assessment?.gpsMetadata.country || 'India',
-    isLive: Boolean(assessment?.gpsMetadata.isLiveLocation),
+    locationName: assessment?.gpsMetadata?.locationName || '',
+    district: assessment?.gpsMetadata?.district || 'Junagadh',
+    state: assessment?.gpsMetadata?.state || 'Gujarat',
+    country: assessment?.gpsMetadata?.country || 'India',
+    isLive: Boolean(assessment?.gpsMetadata?.isLiveLocation),
   });
 
   // Dynamically resolve actual scanned location if live or coordinates differ
   useEffect(() => {
     if (!assessment) return;
-    const { lat, lng, district, state, country, locationName, isLiveLocation } = assessment.gpsMetadata;
+    const lat = Number(assessment.gpsMetadata?.lat) || 21.5222;
+    const lng = Number(assessment.gpsMetadata?.lng) || 70.4579;
+    const district = assessment.gpsMetadata?.district || 'Junagadh';
+    const state = assessment.gpsMetadata?.state || 'Gujarat';
+    const country = assessment.gpsMetadata?.country || 'India';
+    const locationName = assessment.gpsMetadata?.locationName || '';
+    const isLiveLocation = Boolean(assessment.gpsMetadata?.isLiveLocation);
 
     // If assessment already has an explicit location name and is not the hardcoded Junagadh default
     if (locationName && (district !== 'Junagadh' || isLiveLocation)) {
@@ -245,7 +251,7 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
   const hasValidGoogleMapsKey = isValidGoogleMapsKey(envMapsKey) && !mapAuthFailed;
 
   const isSufferingFromDisease = assessment.isDiseased ?? (
-    !/healthy|normal|no active|no pathological|optimal/i.test(assessment.primaryDiagnosis) ||
+    !/healthy|normal|no active|no pathological|optimal/i.test(assessment.primaryDiagnosis || '') ||
     assessment.severityGrade === 'Emergency Quarantine' ||
     assessment.severityGrade === 'Severe' ||
     assessment.severityGrade === 'Moderate'
@@ -253,7 +259,7 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
 
   const identifiedDisease = translatedFields?.diseaseIdentified || assessment.diseaseIdentified || (
     isSufferingFromDisease
-      ? assessment.primaryDiagnosis.replace(/\s*-\s*Clinical Stage.*$/i, '').replace(/\s*-\s*Stage.*$/i, '').trim()
+      ? (assessment.primaryDiagnosis || 'Active Clinical Condition').replace(/\s*-\s*Clinical Stage.*$/i, '').replace(/\s*-\s*Stage.*$/i, '').trim()
       : 'Healthy (No Disease Detected)'
   );
 
@@ -270,23 +276,27 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
       : 'The cattle is evaluated as Healthy with no visible clinical pathology or infectious lesions detected. Normal coat luster, clear eyes and muzzle, and balanced conformation observed.'
   );
 
-  const observedSymptomsList = (translatedFields?.symptomsObserved && translatedFields.symptomsObserved.length > 0)
+  const observedSymptomsList = (translatedFields?.symptomsObserved && Array.isArray(translatedFields.symptomsObserved) && translatedFields.symptomsObserved.length > 0)
     ? translatedFields.symptomsObserved
-    : (assessment.symptomsObserved && assessment.symptomsObserved.length > 0)
+    : (Array.isArray(assessment.symptomsObserved) && assessment.symptomsObserved.length > 0)
       ? assessment.symptomsObserved
-      : (assessment.lesions && assessment.lesions.length > 0)
-        ? assessment.lesions.map(l => `${l.label} (${l.anatomicalLocation})`)
+      : (Array.isArray(assessment.lesions) && assessment.lesions.length > 0)
+        ? assessment.lesions.map(l => `${l.label} (${l.anatomicalLocation || 'Skin'})`)
         : isSufferingFromDisease
           ? ['Cutaneous lesions or postural discomfort observed during camera scan']
           : ['Clear eyes and moist muzzle perspiration', 'Smooth, glossy coat without lesions', 'Alert upright posture and symmetrical gait'];
 
-  const immediateRemedies = (translatedFields?.immediateRemedies && translatedFields.immediateRemedies.length > 0)
+  const immediateRemedies = (translatedFields?.immediateRemedies && Array.isArray(translatedFields.immediateRemedies) && translatedFields.immediateRemedies.length > 0)
     ? translatedFields.immediateRemedies
-    : assessment.immediateRemedies;
+    : (Array.isArray(assessment.immediateRemedies) && assessment.immediateRemedies.length > 0)
+      ? assessment.immediateRemedies
+      : ['Isolate the cattle in a shaded, well-ventilated enclosure.', 'Provide clean drinking water with electrolyte salts.', 'Contact the nearest Veterinary Officer or 1962 Mobile Veterinary Unit.'];
 
-  const recommendedVeterinaryActions = (translatedFields?.recommendedVeterinaryActions && translatedFields.recommendedVeterinaryActions.length > 0)
+  const recommendedVeterinaryActions = (translatedFields?.recommendedVeterinaryActions && Array.isArray(translatedFields.recommendedVeterinaryActions) && translatedFields.recommendedVeterinaryActions.length > 0)
     ? translatedFields.recommendedVeterinaryActions
-    : assessment.recommendedVeterinaryActions;
+    : (Array.isArray(assessment.recommendedVeterinaryActions) && assessment.recommendedVeterinaryActions.length > 0)
+      ? assessment.recommendedVeterinaryActions
+      : ['Clinical examination by registered veterinarian within 24 hours.', 'Prescribed supportive and biosecurity measures.'];
 
   const pregnancyRiskNotes = translatedFields?.pregnancyRiskNotes || 
     assessment.reproductiveAndLactationAlerts?.pregnancyRiskNotes || 
@@ -297,9 +307,9 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
     assessment.reproductiveAndLactationAlerts?.lactationImpact || 
     `Daily milk yield monitoring indicated under ${assessment.lactationStatus || 'active lactation'} protocol.`;
 
-  const drugContraindications = (translatedFields?.drugContraindications && translatedFields.drugContraindications.length > 0)
+  const drugContraindications = (translatedFields?.drugContraindications && Array.isArray(translatedFields.drugContraindications) && translatedFields.drugContraindications.length > 0)
     ? translatedFields.drugContraindications
-    : (assessment.reproductiveAndLactationAlerts?.drugContraindications || []);
+    : (Array.isArray(assessment.reproductiveAndLactationAlerts?.drugContraindications) ? (assessment.reproductiveAndLactationAlerts?.drugContraindications || []) : []);
 
   const nutritionalRecommendation = translatedFields?.nutritionalRecommendation || 
     assessment.reproductiveAndLactationAlerts?.nutritionalRecommendation;
@@ -308,25 +318,29 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
 
   // Text to Speech narrative for rural farmers in their preferred report language
   const handleVoiceNarrative = () => {
-    if ('speechSynthesis' in window) {
+    try {
+      if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+        return;
+      }
+
       if (isPlayingAudio) {
         window.speechSynthesis.cancel();
         setIsPlayingAudio(false);
         return;
       }
 
-      const speechLang = currentLangInfo.speechCode || 'hi-IN';
+      const speechLang = currentLangInfo?.speechCode || 'hi-IN';
 
       let narrativeText = '';
       if (assessment.audioNarration && reportLanguage === 'en') {
         narrativeText = assessment.audioNarration;
       } else if (reportLanguage === 'en') {
         narrativeText = isSufferingFromDisease
-          ? `Gemini AI Diagnostic Report. The cattle is diagnosed with ${identifiedDisease}. ${diseaseStatement}. Severity grade: ${assessment.severityGrade}. Recommended immediate remedies: ${immediateRemedies.slice(0, 3).join('. ')}.`
-          : `Gemini AI Diagnostic Report. The animal is evaluated as healthy and in optimal condition. ${diseaseStatement}. Body condition score is ${assessment.bodyConditionScore}.`;
+          ? `Gemini AI Diagnostic Report. The cattle is diagnosed with ${identifiedDisease}. ${diseaseStatement}. Severity grade: ${assessment.severityGrade || 'Moderate'}. Recommended immediate remedies: ${(immediateRemedies || []).slice(0, 3).join('. ')}.`
+          : `Gemini AI Diagnostic Report. The animal is evaluated as healthy and in optimal condition. ${diseaseStatement}. Body condition score is ${assessment.bodyConditionScore || 3.5}.`;
       } else {
         narrativeText = isSufferingFromDisease
-          ? `पशु स्वास्थ्य रिपोर्ट: गाय या भैंस ${identifiedDisease} (${commonDiseaseName || ''}) से पीड़ित है। ${diseaseStatement}। गंभीरता: ${assessment.severityGrade}। तुरंत उपाय: ${immediateRemedies.slice(0, 3).join('. ')}।`
+          ? `पशु स्वास्थ्य रिपोर्ट: गाय या भैंस ${identifiedDisease} (${commonDiseaseName || ''}) से पीड़ित है। ${diseaseStatement}। गंभीरता: ${assessment.severityGrade || 'मध्यम'}। तुरंत उपाय: ${(immediateRemedies || []).slice(0, 3).join('. ')}।`
           : `पशु स्वास्थ्य रिपोर्ट: पशु पूरी तरह से स्वस्थ है। ${diseaseStatement}।`;
       }
 
@@ -335,25 +349,39 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
       utterance.lang = speechLang;
       utterance.rate = 0.92;
       utterance.onend = () => setIsPlayingAudio(false);
-      utterance.onerror = () => setIsPlayingAudio(false);
+      utterance.onerror = (e) => {
+        console.warn('Speech synthesis utterance notice:', e);
+        setIsPlayingAudio(false);
+      };
 
       setIsPlayingAudio(true);
       window.speechSynthesis.speak(utterance);
+    } catch (speechErr) {
+      console.warn('Speech synthesis playback exception handled safely:', speechErr);
+      setIsPlayingAudio(false);
     }
   };
 
   // Automatically speak out the diagnosis when report modal opens
   useEffect(() => {
     const timer = setTimeout(() => {
-      if ('speechSynthesis' in window && !isPlayingAudio) {
-        handleVoiceNarrative();
+      try {
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window && !isPlayingAudio) {
+          handleVoiceNarrative();
+        }
+      } catch (e) {
+        console.warn('Autoplay speech handled safely:', e);
       }
     }, 650);
 
     return () => {
       clearTimeout(timer);
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
+      try {
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+        }
+      } catch (e) {
+        // ignore
       }
     };
   }, [assessment.id]);
@@ -600,17 +628,22 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
                 />
 
                 {/* Lesion Bounding Boxes */}
-                {showLesionBoxes && assessment.lesions.map((lesion) => {
+                {showLesionBoxes && (assessment.lesions || []).map((lesion) => {
                   const isSelected = selectedLesionId === lesion.id;
+                  const bbox = lesion.boundingBox || { ymin: 20, xmin: 20, ymax: 50, xmax: 50 };
+                  const ymin = Number(bbox.ymin) || 0;
+                  const xmin = Number(bbox.xmin) || 0;
+                  const ymax = Number(bbox.ymax) || 100;
+                  const xmax = Number(bbox.xmax) || 100;
                   return (
                     <div
-                      key={lesion.id}
+                      key={lesion.id || Math.random().toString()}
                       onClick={() => setSelectedLesionId(isSelected ? null : lesion.id)}
                       style={{
-                        top: `${lesion.boundingBox.ymin}%`,
-                        left: `${lesion.boundingBox.xmin}%`,
-                        width: `${lesion.boundingBox.xmax - lesion.boundingBox.xmin}%`,
-                        height: `${lesion.boundingBox.ymax - lesion.boundingBox.ymin}%`,
+                        top: `${ymin}%`,
+                        left: `${xmin}%`,
+                        width: `${Math.max(4, xmax - xmin)}%`,
+                        height: `${Math.max(4, ymax - ymin)}%`,
                       }}
                       className={`absolute border-2 transition-all cursor-pointer ${
                         isSelected
@@ -619,7 +652,7 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
                       }`}
                     >
                       <div className="absolute -top-6 left-0 bg-rose-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-xs whitespace-nowrap">
-                        {lesion.label} ({lesion.confidence}%)
+                        {lesion.label} ({lesion.confidence || 90}%)
                       </div>
                     </div>
                   );
@@ -639,28 +672,32 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
                 <div className="flex items-center justify-between text-xs font-bold text-slate-700">
                   <span className="flex items-center gap-1.5">
                     <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
-                    <span>Detected Lesions ({assessment.lesions.length})</span>
+                    <span>Detected Lesions ({(assessment.lesions || []).length})</span>
                   </span>
                   <span className="text-[10px] text-slate-400 font-normal">Click box to inspect</span>
                 </div>
 
-                {assessment.lesions.map((l) => (
-                  <div
-                    key={l.id}
-                    onClick={() => setSelectedLesionId(l.id)}
-                    className={`p-2 rounded-lg text-[11px] cursor-pointer transition-colors border ${
-                      selectedLesionId === l.id
-                        ? 'bg-amber-50 border-amber-300 text-amber-900 shadow-xs'
-                        : 'bg-white border-slate-200/80 text-slate-700 hover:bg-slate-100'
-                    }`}
-                  >
-                    <div className="flex justify-between font-bold">
-                      <span className="text-slate-900">{l.label}</span>
-                      <span className="text-rose-600 font-semibold">{l.severity}</span>
+                {(assessment.lesions || []).length === 0 ? (
+                  <p className="text-[11px] text-slate-500 py-1 italic">No focal cutaneous lesions or lesions detected.</p>
+                ) : (
+                  (assessment.lesions || []).map((l, lIdx) => (
+                    <div
+                      key={l.id || lIdx}
+                      onClick={() => setSelectedLesionId(l.id)}
+                      className={`p-2 rounded-lg text-[11px] cursor-pointer transition-colors border ${
+                        selectedLesionId === l.id
+                          ? 'bg-amber-50 border-amber-300 text-amber-900 shadow-xs'
+                          : 'bg-white border-slate-200/80 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <div className="flex justify-between font-bold">
+                        <span className="text-slate-900">{l.label}</span>
+                        <span className="text-rose-600 font-semibold">{l.severity}</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 mt-0.5">{l.anatomicalLocation}: {l.clinicalDescription}</p>
                     </div>
-                    <p className="text-[10px] text-slate-500 mt-0.5">{l.anatomicalLocation}: {l.clinicalDescription}</p>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
 
@@ -816,7 +853,7 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 shadow-xs col-span-2 sm:col-span-1">
                   <span className="text-[10px] text-slate-500 uppercase font-bold">{uiText.coatConditionTitle || 'Coat & Skin Quality'}</span>
                   <p className="text-xs font-bold text-amber-800 mt-0.5">{coatCondition}</p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">Posture: {assessment.postureAssessment.spineCurvature}</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Posture: {assessment.postureAssessment?.spineCurvature || 'Normal Alignment'}</p>
                 </div>
               </div>
 
@@ -828,7 +865,7 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
                 </h4>
 
                 <div className="space-y-2">
-                  {assessment.differentialDiagnoses.map((diff, idx) => (
+                  {(assessment.differentialDiagnoses || []).map((diff, idx) => (
                     <div key={idx} className="space-y-1">
                       <div className="flex justify-between text-xs font-semibold">
                         <span className="text-slate-900">{diff.disease}</span>
@@ -841,7 +878,7 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
                         ></div>
                       </div>
                       <p className="text-[10px] text-slate-500">
-                        Indicators: {diff.keyIndications.join(' • ')}
+                        Indicators: {(diff.keyIndications || []).join(' • ')}
                       </p>
                     </div>
                   ))}
@@ -854,7 +891,7 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
                   Conformational Posture Indices
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {assessment.conformationalMetrics.map((cm, idx) => (
+                  {(assessment.conformationalMetrics || []).map((cm, idx) => (
                     <div key={idx} className="p-2 bg-white rounded-lg text-[11px] border border-slate-200 shadow-xs">
                       <div className="flex justify-between font-bold">
                         <span className="text-slate-800">{cm.metric}</span>
@@ -1009,13 +1046,13 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {assessment.ragCitations.map((citation, idx) => (
+              {(assessment.ragCitations || []).map((citation, idx) => (
                 <div key={idx} className="p-3 bg-white rounded-xl border border-slate-200/80 text-xs space-y-1.5 shadow-xs">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                      {citation.source}
+                      {citation.source || 'Bharat Pashudhan Knowledge Graph'}
                     </span>
-                    <span className="text-[10px] text-slate-500 font-mono">Score: {(citation.relevanceScore * 100).toFixed(1)}%</span>
+                    <span className="text-[10px] text-slate-500 font-mono">Score: {((citation.relevanceScore || 0.92) * 100).toFixed(1)}%</span>
                   </div>
                   <h5 className="font-bold text-slate-900 text-xs">{citation.title}</h5>
                   <p className="text-[11px] text-slate-600 italic bg-slate-50 p-2 rounded border border-slate-200">
@@ -1038,125 +1075,131 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
           </div>
 
           {/* GPS Metadata & Officer Flagging CTA */}
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs gap-3">
-              <div className="flex items-center space-x-2 text-slate-700 flex-wrap">
-                <MapPin className="w-4 h-4 text-rose-500 shrink-0" />
-                <span>
-                  Scanned Cattle Location:{' '}
-                  <strong className="text-slate-900 font-bold">
-                    {displayLocation.locationName || `${displayLocation.district}, ${displayLocation.state}`}
-                  </strong>{' '}
-                  <span className="text-slate-500 font-mono">
-                    [{assessment.gpsMetadata.lat.toFixed(4)}°, {assessment.gpsMetadata.lng.toFixed(4)}°]
-                  </span>
-                </span>
-                {displayLocation.isLive && (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    Live Field GPS
-                  </span>
-                )}
-              </div>
-
-              <button
-                onClick={handleFlagCase}
-                disabled={officerFlagged}
-                className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer ${
-                  officerFlagged
-                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 cursor-default font-bold'
-                    : 'bg-amber-600 hover:bg-amber-700 text-white shadow-xs'
-                }`}
-              >
-                {officerFlagged ? <Check className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
-                <span>{officerFlagged ? 'Flagged to Vet Officer Queue' : 'Flag for Veterinary Officer Review'}</span>
-              </button>
-            </div>
-
-            <div className="w-full h-44 rounded-xl overflow-hidden border border-slate-200 relative shadow-xs bg-slate-900">
-              {hasValidGoogleMapsKey ? (
-                <APIProvider apiKey={envMapsKey}>
-                  <Map
-                    defaultCenter={{ lat: assessment.gpsMetadata.lat, lng: assessment.gpsMetadata.lng }}
-                    defaultZoom={12}
-                    mapId="DEMO_MAP_ID"
-                    disableDefaultUI={true}
-                    zoomControl={true}
-                    className="w-full h-full"
-                    internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
-                  >
-                    <AdvancedMarker
-                      position={{ lat: assessment.gpsMetadata.lat, lng: assessment.gpsMetadata.lng }}
-                      title={`${assessment.id} - ${assessment.predictedBreed}`}
-                    >
-                      <Pin
-                        background={
-                          assessment.severityGrade === 'Emergency Quarantine'
-                            ? '#dc2626'
-                            : assessment.severityGrade === 'Severe'
-                            ? '#e11d48'
-                            : '#d97706'
-                        }
-                        borderColor="#ffffff"
-                        glyphColor="#ffffff"
-                        scale={1.1}
-                      />
-                    </AdvancedMarker>
-                  </Map>
-                </APIProvider>
-              ) : (
-                <div className="w-full h-full p-3.5 flex flex-col justify-between relative overflow-hidden bg-radial from-slate-800 to-slate-950 text-white">
-                  {/* Background GIS Gridlines & Radar Circles */}
-                  <div className="absolute inset-0 opacity-20 pointer-events-none flex items-center justify-center">
-                    <div className="w-56 h-56 border border-emerald-500 rounded-full animate-ping duration-1000" />
-                    <div className="w-40 h-40 border border-cyan-500/50 rounded-full" />
-                    <div className="w-24 h-24 border border-slate-600 rounded-full" />
-                    <div className="absolute inset-0 bg-[linear-gradient(to_right,#33415515_1px,transparent_1px),linear-gradient(to_bottom,#33415515_1px,transparent_1px)] bg-[size:16px_16px]" />
-                  </div>
-
-                  {/* Top GPS Status bar */}
-                  <div className="relative z-10 flex items-center justify-between text-[11px] font-mono">
-                    <div className="flex items-center space-x-1.5 bg-slate-800/90 px-2.5 py-1 rounded-lg border border-slate-700">
-                      <Compass className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
-                      <span className="text-emerald-300 font-bold">GPS Geotag Fixed</span>
-                    </div>
-                    <span className="text-slate-300 bg-slate-800/90 px-2 py-0.5 rounded border border-slate-700 text-[10px]">
-                      NDLM Georeferenced
+          {(() => {
+            const safeLat = Number(assessment.gpsMetadata?.lat) || 21.5222;
+            const safeLng = Number(assessment.gpsMetadata?.lng) || 70.4579;
+            return (
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs gap-3">
+                  <div className="flex items-center space-x-2 text-slate-700 flex-wrap">
+                    <MapPin className="w-4 h-4 text-rose-500 shrink-0" />
+                    <span>
+                      Scanned Cattle Location:{' '}
+                      <strong className="text-slate-900 font-bold">
+                        {displayLocation.locationName || `${displayLocation.district}, ${displayLocation.state}`}
+                      </strong>{' '}
+                      <span className="text-slate-500 font-mono">
+                        [{safeLat.toFixed(4)}°, {safeLng.toFixed(4)}°]
+                      </span>
                     </span>
+                    {displayLocation.isLive && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Live Field GPS
+                      </span>
+                    )}
                   </div>
 
-                  {/* Center Location & Coordinates */}
-                  <div className="relative z-10 text-center my-auto px-4">
-                    <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-400 text-emerald-300 shadow-lg shadow-emerald-500/30 mb-1">
-                      <MapPin className="w-4 h-4" />
-                    </div>
-                    <p className="text-xs font-bold text-slate-100 line-clamp-2" title={displayLocation.locationName || `${displayLocation.district}, ${displayLocation.state}`}>
-                      {displayLocation.locationName || `${displayLocation.district}, ${displayLocation.state}`}
-                    </p>
-                    <p className="text-[11px] font-mono text-emerald-400">
-                      {assessment.gpsMetadata.lat.toFixed(4)}°N, {assessment.gpsMetadata.lng.toFixed(4)}°E
-                    </p>
-                    <span className="text-[10px] text-slate-400">Cattle Scanned Location</span>
-                  </div>
-
-                  {/* Bottom Coordinates & Link */}
-                  <div className="relative z-10 flex items-center justify-between text-[10px] text-slate-400 border-t border-slate-800 pt-1.5">
-                    <span>Altitude: ~{assessment.gpsMetadata.altitudeMeters || 312}m • Precision: ±4.2m</span>
-                    <a
-                      href={`https://www.google.com/maps?q=${assessment.gpsMetadata.lat},${assessment.gpsMetadata.lng}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-medium transition-colors"
-                      title={`Open ${displayLocation.locationName || displayLocation.district} in Google Maps`}
-                    >
-                      <span>Open in Maps ({displayLocation.district || 'Scanned Location'})</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  </div>
+                  <button
+                    onClick={handleFlagCase}
+                    disabled={officerFlagged}
+                    className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer ${
+                      officerFlagged
+                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 cursor-default font-bold'
+                        : 'bg-amber-600 hover:bg-amber-700 text-white shadow-xs'
+                    }`}
+                  >
+                    {officerFlagged ? <Check className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+                    <span>{officerFlagged ? 'Flagged to Vet Officer Queue' : 'Flag for Veterinary Officer Review'}</span>
+                  </button>
                 </div>
-              )}
-            </div>
-          </div>
+
+                <div className="w-full h-44 rounded-xl overflow-hidden border border-slate-200 relative shadow-xs bg-slate-900">
+                  {hasValidGoogleMapsKey ? (
+                    <APIProvider apiKey={envMapsKey}>
+                      <Map
+                        defaultCenter={{ lat: safeLat, lng: safeLng }}
+                        defaultZoom={12}
+                        mapId="DEMO_MAP_ID"
+                        disableDefaultUI={true}
+                        zoomControl={true}
+                        className="w-full h-full"
+                        internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
+                      >
+                        <AdvancedMarker
+                          position={{ lat: safeLat, lng: safeLng }}
+                          title={`${assessment.id} - ${assessment.predictedBreed || 'Cattle'}`}
+                        >
+                          <Pin
+                            background={
+                              assessment.severityGrade === 'Emergency Quarantine'
+                                ? '#dc2626'
+                                : assessment.severityGrade === 'Severe'
+                                ? '#e11d48'
+                                : '#d97706'
+                            }
+                            borderColor="#ffffff"
+                            glyphColor="#ffffff"
+                            scale={1.1}
+                          />
+                        </AdvancedMarker>
+                      </Map>
+                    </APIProvider>
+                  ) : (
+                    <div className="w-full h-full p-3.5 flex flex-col justify-between relative overflow-hidden bg-radial from-slate-800 to-slate-950 text-white">
+                      {/* Background GIS Gridlines & Radar Circles */}
+                      <div className="absolute inset-0 opacity-20 pointer-events-none flex items-center justify-center">
+                        <div className="w-56 h-56 border border-emerald-500 rounded-full animate-ping duration-1000" />
+                        <div className="w-40 h-40 border border-cyan-500/50 rounded-full" />
+                        <div className="w-24 h-24 border border-slate-600 rounded-full" />
+                        <div className="absolute inset-0 bg-[linear-gradient(to_right,#33415515_1px,transparent_1px),linear-gradient(to_bottom,#33415515_1px,transparent_1px)] bg-[size:16px_16px]" />
+                      </div>
+
+                      {/* Top GPS Status bar */}
+                      <div className="relative z-10 flex items-center justify-between text-[11px] font-mono">
+                        <div className="flex items-center space-x-1.5 bg-slate-800/90 px-2.5 py-1 rounded-lg border border-slate-700">
+                          <Compass className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
+                          <span className="text-emerald-300 font-bold">GPS Geotag Fixed</span>
+                        </div>
+                        <span className="text-slate-300 bg-slate-800/90 px-2 py-0.5 rounded border border-slate-700 text-[10px]">
+                          NDLM Georeferenced
+                        </span>
+                      </div>
+
+                      {/* Center Location & Coordinates */}
+                      <div className="relative z-10 text-center my-auto px-4">
+                        <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-400 text-emerald-300 shadow-lg shadow-emerald-500/30 mb-1">
+                          <MapPin className="w-4 h-4" />
+                        </div>
+                        <p className="text-xs font-bold text-slate-100 line-clamp-2" title={displayLocation.locationName || `${displayLocation.district}, ${displayLocation.state}`}>
+                          {displayLocation.locationName || `${displayLocation.district}, ${displayLocation.state}`}
+                        </p>
+                        <p className="text-[11px] font-mono text-emerald-400">
+                          {safeLat.toFixed(4)}°N, {safeLng.toFixed(4)}°E
+                        </p>
+                        <span className="text-[10px] text-slate-400">Cattle Scanned Location</span>
+                      </div>
+
+                      {/* Bottom Coordinates & Link */}
+                      <div className="relative z-10 flex items-center justify-between text-[10px] text-slate-400 border-t border-slate-800 pt-1.5">
+                        <span>Altitude: ~{assessment.gpsMetadata?.altitudeMeters || 312}m • Precision: ±4.2m</span>
+                        <a
+                          href={`https://www.google.com/maps?q=${safeLat},${safeLng}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-medium transition-colors"
+                          title={`Open ${displayLocation.locationName || displayLocation.district} in Google Maps`}
+                        >
+                          <span>Open in Maps ({displayLocation.district || 'Scanned Location'})</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
 
         </div>
 
@@ -1342,26 +1385,29 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
                     <button
                       onClick={() => {
                         const matchedAnimal = animals.find((a) => a.id === targetAnimalId);
+                        const safeBreed = assessment.predictedBreed || 'Gir (Bos indicus)';
+                        const safeGpsLat = Number(assessment.gpsMetadata?.lat) || 21.5222;
+                        const safeGpsLng = Number(assessment.gpsMetadata?.lng) || 70.4579;
                         const newReport: CattleFormalReport = {
                           id: `rep-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`,
                           reportNumber: `NDLM-REP-${Math.floor(100000 + Math.random() * 900000)}`,
                           animalId: matchedAnimal?.id || assessment.animalId || `anim-${Date.now().toString(36)}`,
                           animalEarTag: matchedAnimal?.earTagNumber || `IN-DLM-${Math.floor(1000 + Math.random() * 9000)}`,
-                          animalName: matchedAnimal?.name || `${assessment.predictedBreed.split(' ')[0]} Specimen`,
-                          breed: assessment.predictedBreed,
-                          species: assessment.detectedSpecies,
+                          animalName: matchedAnimal?.name || `${safeBreed.split(' ')[0]} Specimen`,
+                          breed: safeBreed,
+                          species: assessment.detectedSpecies || 'Cattle',
                           createdAt: new Date().toISOString(),
                           authorRole: currentUser?.role === 'veterinarian' ? 'Veterinary Officer' : 'Farmer',
                           authorName: currentUser?.name || 'Registered User',
-                          title: customReportTitle || `Health Assessment: ${assessment.primaryDiagnosis}`,
-                          primaryDiagnosis: assessment.primaryDiagnosis,
-                          severityGrade: assessment.severityGrade,
-                          summaryObservations: `${assessment.primaryDiagnosis}. Coat: ${assessment.coatCondition}. Posture: ${assessment.postureAssessment?.headCarriage}, ${assessment.postureAssessment?.weightBearing}.`,
+                          title: customReportTitle || `Health Assessment: ${assessment.primaryDiagnosis || 'Cattle Checkup'}`,
+                          primaryDiagnosis: assessment.primaryDiagnosis || 'Clinical Examination Complete',
+                          severityGrade: assessment.severityGrade || 'Moderate',
+                          summaryObservations: `${assessment.primaryDiagnosis || 'Health review'}. Coat: ${assessment.coatCondition || 'Normal'}. Posture: ${assessment.postureAssessment?.headCarriage || 'Normal'}, ${assessment.postureAssessment?.weightBearing || 'Stable'}.`,
                           customNotes: customReportNotes,
-                          immediateRemedies: assessment.immediateRemedies || [],
-                          recommendedVeterinaryActions: assessment.recommendedVeterinaryActions || [],
-                          drugContraindications: assessment.reproductiveAndLactationAlerts?.drugContraindications || [],
-                          bcsScore: assessment.bodyConditionScore,
+                          immediateRemedies: immediateRemedies || [],
+                          recommendedVeterinaryActions: recommendedVeterinaryActions || [],
+                          drugContraindications: drugContraindications || [],
+                          bcsScore: Number(assessment.bodyConditionScore) || 3.2,
                           pregnancyStatus: assessment.pregnancyStatus,
                           lactationStatus: assessment.lactationStatus,
                           dailyMilkYieldLiters: assessment.milkYieldImpact ? undefined : 12.0,
@@ -1371,8 +1417,8 @@ export const DiagnosticReportModal: React.FC<DiagnosticReportModalProps> = ({
                             state: displayLocation.state,
                             locationName: displayLocation.locationName,
                             country: displayLocation.country,
-                            lat: assessment.gpsMetadata.lat,
-                            lng: assessment.gpsMetadata.lng,
+                            lat: safeGpsLat,
+                            lng: safeGpsLng,
                             isLiveLocation: displayLocation.isLive,
                           },
                           ndlmSyncStatus: 'Synchronized & Verified',
