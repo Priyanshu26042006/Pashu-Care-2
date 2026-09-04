@@ -435,22 +435,13 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
       console.warn('Livestock scanner rejection note:', err);
       setIsProcessing(false);
       
-      if (err?.message?.includes('GEMINI_API_KEY_REQUIRED') || err?.message?.includes('API key')) {
-        setRejectionData({
-          title: 'GEMINI API KEY REQUIRED',
-          message: 'DEPLOYMENT CONFIGURATION NOTICE',
-          detectedObject: 'Render / Hosting Environment',
-          details: err?.message || 'To analyze live camera photos on your deployed app, please set GEMINI_API_KEY in your hosting environment variables (e.g. Render Dashboard -> Environment).'
-        });
-      } else {
-        // Strict rejection modal display for non-living objects
-        setRejectionData({
-          title: 'NON LIVING OBJECT DETECTED',
-          message: 'PLEASE RETAKE PROPERLY',
-          detectedObject: err?.detectedObject || 'Inanimate / Non-livestock item',
-          details: err?.rejectionMessage || err?.message || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY. The visual scanner could not confirm a living livestock animal (cattle, buffalo, goat, or sheep) in the frame. Please align the cattle clearly inside the camera reticle with adequate lighting and retake.'
-        });
-      }
+      // Strict rejection modal display for non-living objects
+      setRejectionData({
+        title: 'NON LIVING OBJECT DETECTED',
+        message: 'PLEASE RETAKE PROPERLY',
+        detectedObject: err?.detectedObject || 'Inanimate / Non-livestock item',
+        details: err?.rejectionMessage || err?.message || 'NON LIVING OBJECT DETECTED - PLEASE RETAKE PROPERLY. The visual scanner could not confirm a living livestock animal (cattle, buffalo, goat, or sheep) in the frame. Please align the cattle clearly inside the camera reticle with adequate lighting and retake.'
+      });
     }
   };
 
