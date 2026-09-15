@@ -2,7 +2,6 @@ import express from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
-import { createServer as createViteServer } from 'vite';
 
 dotenv.config();
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
@@ -10,7 +9,18 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env.production') });
 
 async function startServer() {
   const app = express();
-  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+  
+  // Production vs Dev resolution: On Render or in dist bundle, run production mode.
+  const isProduction =
+    process.env.NODE_ENV === 'production' ||
+    Boolean(process.env.RENDER) ||
+    (typeof __filename !== 'undefined' && __filename.includes('dist'));
+
+  // In AI Studio dev environment, port 3000 is required by the nginx proxy.
+  // In cloud production deployment (Render, etc.), use the platform-assigned PORT.
+  const PORT = isProduction && process.env.PORT
+    ? parseInt(process.env.PORT, 10)
+    : 3000;
 
   // Middleware for large payload (images)
   app.use(express.json({ limit: '30mb' }));
@@ -2111,9 +2121,13 @@ OUTPUT FORMAT: Return strictly a valid JSON object matching this schema (do NOT 
   });
 
   // Vite middleware for dev / static for prod
-  if (process.env.NODE_ENV !== 'production') {
+  if (!isProduction) {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: process.env.DISABLE_HMR === 'true' ? false : undefined,
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
@@ -2125,8 +2139,16 @@ OUTPUT FORMAT: Return strictly a valid JSON object matching this schema (do NOT 
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`PashuHealth AI Core running on http://0.0.0.0:${PORT}`);
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`PashuHealth AI Core running on http://0.0.0.0:${PORT} [mode: ${isProduction ? 'production' : 'development'}]`);
+  });
+
+  server.on('error', (err: any) => {
+    if (err?.code === 'EADDRINUSE') {
+      console.error(`Port ${PORT} is already in use.`);
+    } else {
+      console.error('Server network error:', err);
+    }
   });
 }
 
