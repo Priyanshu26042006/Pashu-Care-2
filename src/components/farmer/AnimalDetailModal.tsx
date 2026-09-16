@@ -28,6 +28,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { AnimalProfile, SupportedLanguage, CattleFormalReport } from '../../types';
 import { APIProvider, Map, AdvancedMarker, Pin } from '@vis.gl/react-google-maps';
 import { isValidGoogleMapsKey, getStoredGoogleMapsApiKey } from '../../utils/googleMaps';
+import { getFarmerUIText } from '../../utils/farmerTranslations';
 
 interface AnimalDetailModalProps {
   animal: AnimalProfile | null;
@@ -46,6 +47,7 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
 }) => {
   const [selectedReport, setSelectedReport] = useState<CattleFormalReport | null>(null);
   const [mapAuthFailed, setMapAuthFailed] = useState(false);
+  const t = getFarmerUIText(language);
 
   useEffect(() => {
     const prevAuthFailure = (window as any).gm_authFailure;
@@ -83,13 +85,13 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
-                <span>{animal.name || 'Livestock Profile'}</span>
+                <span>{animal.name || t.unnamedBovine}</span>
                 <span className="font-mono text-xs text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                   {animal.earTagNumber}
                 </span>
               </h2>
               <p className="text-xs text-slate-500 font-medium">
-                {animal.species} • {animal.breed} • Owner: {animal.ownerName}
+                {animal.species} • {animal.breed} • {t.owner}: {animal.ownerName}
               </p>
             </div>
           </div>
@@ -118,7 +120,7 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
             <div className="sm:col-span-8 space-y-3">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 shadow-xs">
-                  <span className="text-[10px] text-slate-500 uppercase font-bold">Breed Specimen</span>
+                  <span className="text-[10px] text-slate-500 uppercase font-bold">{t.breed}</span>
                   <p className="text-xs font-bold text-slate-900 mt-0.5">{animal.breed}</p>
                 </div>
 
@@ -128,18 +130,18 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
                 </div>
 
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 shadow-xs">
-                  <span className="text-[10px] text-slate-500 uppercase font-bold">Estimated Weight</span>
-                  <p className="text-xs font-bold text-slate-900 mt-0.5">{animal.weightKg} kg</p>
+                  <span className="text-[10px] text-slate-500 uppercase font-bold">{t.weight}</span>
+                  <p className="text-xs font-bold text-slate-900 mt-0.5">{animal.weightKg} {t.kg}</p>
                 </div>
 
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 shadow-xs">
-                  <span className="text-[10px] text-slate-500 uppercase font-bold">Age</span>
-                  <p className="text-xs font-bold text-slate-900 mt-0.5">{animal.estimatedAgeMonths} Months</p>
+                  <span className="text-[10px] text-slate-500 uppercase font-bold">{t.age}</span>
+                  <p className="text-xs font-bold text-slate-900 mt-0.5">{animal.estimatedAgeMonths} {t.months}</p>
                 </div>
 
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 shadow-xs">
-                  <span className="text-[10px] text-slate-500 uppercase font-bold">Gender</span>
-                  <p className="text-xs font-bold text-slate-900 mt-0.5">{animal.gender}</p>
+                  <span className="text-[10px] text-slate-500 uppercase font-bold">{t.species}</span>
+                  <p className="text-xs font-bold text-slate-900 mt-0.5">{animal.gender} {animal.species}</p>
                 </div>
 
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 shadow-xs">
@@ -151,7 +153,7 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
               {/* Owner & Farm Details */}
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs shadow-xs">
                 <div className="space-y-0.5">
-                  <span className="text-[10px] text-slate-500 uppercase font-bold">Registered Farmer & Farmstead</span>
+                  <span className="text-[10px] text-slate-500 uppercase font-bold">{t.owner} & {t.village}</span>
                   <p className="font-bold text-slate-900">{animal.ownerName} ({animal.ownerContact})</p>
                   <p className="text-[11px] text-slate-500">{animal.ownerVillage}, {animal.district}, {animal.state}</p>
                 </div>
@@ -168,10 +170,10 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-bold text-purple-950 uppercase tracking-wider flex items-center space-x-1.5">
                   <Baby className="w-4 h-4 text-purple-600" />
-                  <span>Reproductive, Gestation & Lactation Profile (NDLM Dairy Track)</span>
+                  <span>{t.reproductiveStatus} (NDLM Dairy Track)</span>
                 </h4>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200">
-                  Breeding Module
+                  NDLM
                 </span>
               </div>
 
@@ -179,26 +181,26 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
                 <div className="p-3 bg-white rounded-xl border border-purple-100 shadow-2xs">
                   <span className="text-[10px] text-slate-500 uppercase font-bold flex items-center gap-1">
                     <Heart className="w-3 h-3 text-purple-600" />
-                    Pregnancy Status
+                    {t.pregnant}
                   </span>
-                  <p className="text-xs font-bold text-slate-900 mt-1">{animal.pregnancyStatus || 'Not Recorded'}</p>
+                  <p className="text-xs font-bold text-slate-900 mt-1">{animal.pregnancyStatus || '—'}</p>
                 </div>
 
                 <div className="p-3 bg-white rounded-xl border border-purple-100 shadow-2xs">
                   <span className="text-[10px] text-slate-500 uppercase font-bold flex items-center gap-1">
                     <Milk className="w-3 h-3 text-cyan-600" />
-                    Lactation Status
+                    {t.dailyMilk}
                   </span>
-                  <p className="text-xs font-bold text-slate-900 mt-1">{animal.lactationStatus || 'Not Recorded'}</p>
+                  <p className="text-xs font-bold text-slate-900 mt-1">{animal.lactationStatus || '—'}</p>
                 </div>
 
                 <div className="p-3 bg-white rounded-xl border border-purple-100 shadow-2xs">
                   <span className="text-[10px] text-slate-500 uppercase font-bold flex items-center gap-1">
                     <Droplet className="w-3 h-3 text-sky-500" />
-                    Daily Milk Yield
+                    {t.dailyMilk}
                   </span>
                   <p className="text-xs font-bold text-slate-900 mt-1">
-                    {animal.dailyMilkYieldLiters ? `${animal.dailyMilkYieldLiters} L/day` : 'N/A'}
+                    {animal.dailyMilkYieldLiters ? `${animal.dailyMilkYieldLiters} ${t.literPerDay}` : '—'}
                   </p>
                 </div>
 
@@ -417,7 +419,7 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
             onClick={onClose}
             className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 hover:text-slate-900 hover:bg-slate-100 text-xs font-semibold cursor-pointer"
           >
-            Close
+            {t.close}
           </button>
 
           <div className="flex items-center space-x-2">
@@ -428,7 +430,7 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
               }}
               className="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold shadow-xs cursor-pointer"
             >
-              Latest Clinical Report
+              Clinical Report
             </button>
 
             <button
@@ -439,7 +441,7 @@ export const AnimalDetailModal: React.FC<AnimalDetailModalProps> = ({
               className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center space-x-1.5 shadow-xs cursor-pointer"
             >
               <Camera className="w-3.5 h-3.5" />
-              <span>Perform New Scan</span>
+              <span>{t.scanThisAnimalNow}</span>
             </button>
           </div>
         </div>

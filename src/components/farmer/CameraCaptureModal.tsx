@@ -1268,15 +1268,15 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
           <button
             onClick={handleExecuteScan}
             disabled={isProcessing}
-            className="flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-6 py-2.5 rounded-xl text-xs sm:text-sm shadow-xs transition-all transform active:scale-95 cursor-pointer"
+            className="flex items-center space-x-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-black px-6 sm:px-8 py-3 sm:py-3.5 rounded-xl text-sm sm:text-base shadow-md hover:shadow-lg transition-all transform active:scale-95 cursor-pointer min-h-[48px]"
           >
-            <Sparkles className="w-4 h-4 stroke-[2.5]" />
+            <Sparkles className="w-5 h-5 stroke-[2.5] text-cyan-200" />
             <span>
               {activeMode === 'live' && capturedLivePhoto
-                ? 'Scan Captured Specimen'
-                : 'Generate Diagnostic Assessment'}
+                ? 'Scan Photo with AI'
+                : 'Start AI Health Scan'}
             </span>
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4 text-emerald-200" />
           </button>
         </div>
 

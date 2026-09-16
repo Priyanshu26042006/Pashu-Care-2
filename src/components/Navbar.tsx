@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { AuthUser, SupportedLanguage, UserRole } from '../types';
 import { SUPPORTED_LANGUAGES } from '../utils/languages';
+import { getFarmerUIText } from '../utils/farmerTranslations';
 
 interface NavbarProps {
   activeTab: 'farmer' | 'officer';
@@ -46,6 +47,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const isVeterinarian = currentUser?.role === 'veterinarian';
   const isFarmer = currentUser?.role === 'farmer';
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const tFarmer = getFarmerUIText(language);
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 text-slate-800 shadow-xs">
@@ -88,7 +90,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
                   }`}
                 >
-                  <span>🌾 Farmer Herd Portal</span>
+                  <span>🌾 {tFarmer.navFarmerPortal}</span>
                 </button>
 
                 <button
@@ -111,7 +113,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </>
             ) : (
               <div className="flex items-center space-x-2 px-3 py-1 text-xs font-bold text-emerald-800 bg-white rounded-lg border border-emerald-200 shadow-xs">
-                <span>🌾 Farmer Herd Portal</span>
+                <span>🌾 {tFarmer.navFarmerPortal}</span>
                 <span className="text-[10px] text-emerald-600 font-normal">({currentUser?.village || 'My Livestock'})</span>
               </div>
             )}
@@ -121,23 +123,22 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="flex items-center space-x-2 sm:space-x-3">
             
             {/* Quick Scan CTA Button */}
-            <div className="relative group p-[2px] rounded-2xl ai-glow-border shadow-md hover:shadow-lg hover:shadow-emerald-500/25 transition-all">
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 rounded-2xl blur-xs opacity-60 group-hover:opacity-100 transition duration-500 pointer-events-none"></div>
+            <div className="relative group p-[2px] rounded-2xl ai-glow-border shadow-lg hover:shadow-xl hover:shadow-emerald-500/30 transition-all">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 rounded-2xl blur-xs opacity-75 group-hover:opacity-100 transition duration-500 pointer-events-none"></div>
 
               <button
                 id="nav-scan-livestock-btn"
                 onClick={onOpenNewScan}
                 aria-label="Scan Livestock with AI Camera"
-                className="relative inline-flex items-center justify-center space-x-2 sm:space-x-2.5 bg-emerald-700 hover:bg-emerald-650 active:bg-emerald-800 text-white px-3.5 sm:px-5 py-2.5 sm:py-3 rounded-[14px] text-xs sm:text-base font-bold transition-all transform active:scale-95 cursor-pointer min-h-[40px] sm:min-h-[44px]"
+                className="relative inline-flex items-center justify-center space-x-2 sm:space-x-3 bg-emerald-700 hover:bg-emerald-650 active:bg-emerald-800 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-[14px] text-sm sm:text-base font-extrabold transition-all transform active:scale-95 cursor-pointer min-h-[46px] sm:min-h-[50px]"
               >
                 <div className="relative flex items-center justify-center">
-                  <Camera className="w-4 h-4 sm:w-5 sm:h-5 text-white stroke-[2.5] shrink-0" />
-                  <Sparkles className="w-3 h-3 text-emerald-200 absolute -top-1.5 -right-1.5 animate-pulse" />
+                  <Camera className="w-5 h-5 sm:w-6 sm:h-6 text-white stroke-[2.5] shrink-0" />
+                  <Sparkles className="w-3.5 h-3.5 text-cyan-200 absolute -top-1.5 -right-1.5 animate-pulse" />
                 </div>
-                <span className="hidden xs:inline tracking-tight">Scan Livestock</span>
-                <span className="xs:hidden tracking-tight">Scan</span>
-                <span className="hidden sm:inline-flex items-center text-[10px] uppercase font-extrabold px-1.5 py-0.5 rounded-md bg-emerald-900/60 border border-emerald-400/40 text-emerald-200 tracking-wider">
-                  AI
+                <span className="tracking-tight text-white font-black text-sm sm:text-base">{tFarmer.navScanAi}</span>
+                <span className="inline-flex items-center text-[10px] sm:text-xs uppercase font-black px-1.5 py-0.5 rounded-md bg-emerald-900/80 border border-emerald-400/50 text-emerald-200 tracking-wider">
+                  {tFarmer.navLiveBadge}
                 </span>
               </button>
             </div>
