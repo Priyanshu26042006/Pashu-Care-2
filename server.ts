@@ -2,6 +2,11 @@ import express from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
+import { db, isDatabaseConfigured } from './src/db/index';
+import { animals, diagnosticAssessments } from './src/db/schema';
+import { eq, desc } from 'drizzle-orm';
+import { ensureDatabaseSeeded } from './src/db/seed';
+import { INITIAL_ANIMAL_PROFILES, INITIAL_ASSESSMENTS } from './src/data/mockLivestockData';
 
 dotenv.config();
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
@@ -101,9 +106,232 @@ async function startServer() {
     res.json({
       status: 'healthy',
       geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
+      databaseConnected: Boolean(process.env.DATABASE_URL),
       platform: 'Gausehat AI Core v2.4.0',
       timestamp: new Date().toISOString(),
     });
+  });
+
+  // ==========================================
+  // PostgreSQL CRUD API: Animals (Livestock)
+  // ==========================================
+  const fallbackAnimals = [...INITIAL_ANIMAL_PROFILES];
+  const fallbackAssessments = [...INITIAL_ASSESSMENTS];
+
+  app.get('/api/animals', async (req, res) => {
+    try {
+      if (isDatabaseConfigured()) {
+        const records = await db.select().from(animals).orderBy(desc(animals.createdAt));
+        return res.json(records);
+      }
+      return res.json(fallbackAnimals);
+    } catch (err: any) {
+      console.warn('Notice: Query animals falling back to local memory store:', err?.message);
+      res.json(fallbackAnimals);
+    }
+  });
+
+  app.get('/api/animals/:id', async (req, res) => {
+    try {
+      const animalId = req.params.id;
+      if (isDatabaseConfigured()) {
+        const found = await db.select().from(animals).where(eq(animals.id, animalId)).limit(1);
+        if (found && found.length > 0) {
+          return res.json(found[0]);
+        }
+      }
+      const localFound = fallbackAnimals.find((a) => a.id === animalId);
+      if (localFound) return res.json(localFound);
+      res.status(404).json({ error: 'Animal not found' });
+    } catch (err: any) {
+      console.warn('Notice: Animal lookup fallback:', err?.message);
+      const localFound = fallbackAnimals.find((a) => a.id === req.params.id);
+      if (localFound) return res.json(localFound);
+      res.status(404).json({ error: 'Animal not found' });
+    }
+  });
+
+  app.post('/api/animals', async (req, res) => {
+    try {
+      const payload = req.body;
+      if (!payload || !payload.id || !payload.earTagNumber) {
+        return res.status(400).json({ error: 'Missing required animal fields (id, earTagNumber).' });
+      }
+
+      const valuesToInsert = {
+        id: payload.id,
+        earTagNumber: payload.earTagNumber,
+        name: payload.name || null,
+        species: payload.species || 'Cattle',
+        breed: payload.breed || 'Indigenous Cattle',
+        estimatedAgeMonths: Number(payload.estimatedAgeMonths) || 36,
+        gender: payload.gender || 'Female',
+        weightKg: Number(payload.weightKg) || 400,
+        ownerName: payload.ownerName || 'Livestock Farmer',
+        ownerContact: payload.ownerContact || '',
+        ownerVillage: payload.ownerVillage || '',
+        district: payload.district || 'District Center',
+        state: payload.state || 'State',
+        gpsLocation: payload.gpsLocation || { lat: 21.5222, lng: 70.4579, timestamp: new Date().toISOString() },
+        currentStatus: payload.currentStatus || 'Healthy',
+        lastAssessmentDate: payload.lastAssessmentDate || new Date().toISOString(),
+        thumbnailUrl: payload.thumbnailUrl || '',
+        bodyConditionScore: Number(payload.bodyConditionScore) || 3.0,
+        pregnancyStatus: payload.pregnancyStatus || null,
+        lactationStatus: payload.lactationStatus || null,
+        dailyMilkYieldLiters: payload.dailyMilkYieldLiters != null ? Number(payload.dailyMilkYieldLiters) : null,
+        lactationStageDays: payload.lactationStageDays != null ? Number(payload.lactationStageDays) : null,
+        inseminationDate: payload.inseminationDate || null,
+        expectedCalvingDate: payload.expectedCalvingDate || null,
+        vaccinations: Array.isArray(payload.vaccinations) ? payload.vaccinations : [],
+        assessmentsCount: Number(payload.assessmentsCount) || 0,
+        quarantineStatus: payload.quarantineStatus || null,
+        reports: Array.isArray(payload.reports) ? payload.reports : [],
+        updatedAt: new Date(),
+      };
+
+      // Also update in-memory fallback
+      const idx = fallbackAnimals.findIndex((a) => a.id === payload.id);
+      if (idx >= 0) {
+        fallbackAnimals[idx] = { ...fallbackAnimals[idx], ...valuesToInsert } as any;
+      } else {
+        fallbackAnimals.unshift(valuesToInsert as any);
+      }
+
+      if (isDatabaseConfigured()) {
+        const [saved] = await db
+          .insert(animals)
+          .values(valuesToInsert)
+          .onConflictDoUpdate({
+            target: animals.id,
+            set: valuesToInsert,
+          })
+          .returning();
+        return res.json(saved);
+      }
+
+      return res.status(201).json(valuesToInsert);
+    } catch (err: any) {
+      console.error('Failed to create or update animal:', err);
+      res.status(500).json({ error: err.message || 'Failed to save animal' });
+    }
+  });
+
+  // ==========================================
+  // PostgreSQL CRUD API: Diagnostic Assessments
+  // ==========================================
+  app.get('/api/assessments', async (req, res) => {
+    try {
+      if (isDatabaseConfigured()) {
+        const records = await db.select().from(diagnosticAssessments).orderBy(desc(diagnosticAssessments.createdAt));
+        return res.json(records);
+      }
+      return res.json(fallbackAssessments);
+    } catch (err: any) {
+      console.warn('Notice: Query assessments falling back to local memory store:', err?.message);
+      res.json(fallbackAssessments);
+    }
+  });
+
+  app.get('/api/assessments/:animalId', async (req, res) => {
+    try {
+      const { animalId } = req.params;
+      if (isDatabaseConfigured()) {
+        const records = await db
+          .select()
+          .from(diagnosticAssessments)
+          .where(eq(diagnosticAssessments.animalId, animalId))
+          .orderBy(desc(diagnosticAssessments.createdAt));
+        return res.json(records);
+      }
+      const filtered = fallbackAssessments.filter((a) => a.animalId === animalId);
+      res.json(filtered);
+    } catch (err: any) {
+      console.warn('Notice: Assessments by animalId fallback:', err?.message);
+      const filtered = fallbackAssessments.filter((a) => a.animalId === req.params.animalId);
+      res.json(filtered);
+    }
+  });
+
+  app.post('/api/assessments', async (req, res) => {
+    try {
+      const payload = req.body;
+      if (!payload || !payload.id || !payload.animalId) {
+        return res.status(400).json({ error: 'Missing required assessment fields (id, animalId).' });
+      }
+
+      const valuesToInsert = {
+        id: payload.id,
+        animalId: payload.animalId,
+        timestamp: payload.timestamp || new Date().toISOString(),
+        imageUrl: payload.imageUrl || '',
+        predictedBreed: payload.predictedBreed || 'Indigenous Breed',
+        breedConfidence: Number(payload.breedConfidence) || 0.85,
+        detectedSpecies: payload.detectedSpecies || 'Cattle',
+        coatCondition: payload.coatCondition || 'Glossy & Healthy',
+        postureAssessment: payload.postureAssessment || {
+          spineCurvature: 'Normal Straight',
+          headCarriage: 'Alert & Elevated',
+          weightBearing: 'Equal on all 4 limbs',
+          gaitConfidence: 95,
+        },
+        bodyConditionScore: Number(payload.bodyConditionScore) || 3.0,
+        conformationalMetrics: Array.isArray(payload.conformationalMetrics) ? payload.conformationalMetrics : [],
+        lesions: Array.isArray(payload.lesions) ? payload.lesions : [],
+        primaryDiagnosis: payload.primaryDiagnosis || 'Clinical Observation',
+        isDiseased: payload.isDiseased ? 'true' : 'false',
+        diseaseIdentified: payload.diseaseIdentified || null,
+        diseaseCommonName: payload.diseaseCommonName || null,
+        diseaseStatus: payload.diseaseStatus || null,
+        diseaseSummaryStatement: payload.diseaseSummaryStatement || null,
+        audioNarration: payload.audioNarration || null,
+        symptomsObserved: Array.isArray(payload.symptomsObserved) ? payload.symptomsObserved : [],
+        differentialDiagnoses: Array.isArray(payload.differentialDiagnoses) ? payload.differentialDiagnoses : [],
+        severityGrade: payload.severityGrade || 'Mild',
+        pregnancyStatus: payload.pregnancyStatus || null,
+        lactationStatus: payload.lactationStatus || null,
+        milkYieldImpact: payload.milkYieldImpact || null,
+        reproductiveAndLactationAlerts: payload.reproductiveAndLactationAlerts || null,
+        ragCitations: Array.isArray(payload.ragCitations) ? payload.ragCitations : [],
+        immediateRemedies: Array.isArray(payload.immediateRemedies) ? payload.immediateRemedies : [],
+        recommendedVeterinaryActions: Array.isArray(payload.recommendedVeterinaryActions) ? payload.recommendedVeterinaryActions : [],
+        biosecurityProtocol: Array.isArray(payload.biosecurityProtocol) ? payload.biosecurityProtocol : [],
+        gpsMetadata: payload.gpsMetadata || {
+          lat: 21.5222,
+          lng: 70.4579,
+          district: 'Satara',
+          state: 'Maharashtra',
+        },
+        audioNarrativeUrl: payload.audioNarrativeUrl || null,
+        audioLanguage: payload.audioLanguage || 'en',
+        reviewedByOfficer: payload.reviewedByOfficer || null,
+      };
+
+      // Also update in-memory fallback
+      const idx = fallbackAssessments.findIndex((a) => a.id === payload.id);
+      if (idx >= 0) {
+        fallbackAssessments[idx] = { ...fallbackAssessments[idx], ...valuesToInsert } as any;
+      } else {
+        fallbackAssessments.unshift(valuesToInsert as any);
+      }
+
+      if (isDatabaseConfigured()) {
+        const [saved] = await db
+          .insert(diagnosticAssessments)
+          .values(valuesToInsert)
+          .onConflictDoUpdate({
+            target: diagnosticAssessments.id,
+            set: valuesToInsert,
+          })
+          .returning();
+        return res.json(saved);
+      }
+
+      return res.status(201).json(valuesToInsert);
+    } catch (err: any) {
+      console.error('Failed to create or update diagnostic assessment:', err);
+      res.status(500).json({ error: err.message || 'Failed to save diagnostic assessment' });
+    }
   });
 
   // Reverse Geocoding API endpoint
@@ -1560,6 +1788,53 @@ Return strictly a JSON object with this format:
         symptomsObserved,
       };
 
+      // Persist completed assessment into PostgreSQL database
+      try {
+        await db.insert(diagnosticAssessments).values({
+          id: completedAssessment.id,
+          animalId: completedAssessment.animalId,
+          timestamp: completedAssessment.timestamp,
+          imageUrl: completedAssessment.imageUrl,
+          predictedBreed: completedAssessment.predictedBreed || 'Indigenous Breed',
+          breedConfidence: Number(completedAssessment.breedConfidence) || 0.85,
+          detectedSpecies: completedAssessment.detectedSpecies || species || 'Cattle',
+          coatCondition: completedAssessment.coatCondition || 'Glossy & Healthy',
+          postureAssessment: completedAssessment.postureAssessment || {
+            spineCurvature: 'Normal Straight',
+            headCarriage: 'Alert & Elevated',
+            weightBearing: 'Equal on all 4 limbs',
+            gaitConfidence: 95,
+          },
+          bodyConditionScore: Number(completedAssessment.bodyConditionScore) || 3.0,
+          conformationalMetrics: completedAssessment.conformationalMetrics || [],
+          lesions: completedAssessment.lesions || [],
+          primaryDiagnosis: completedAssessment.primaryDiagnosis || 'Clinical Assessment',
+          isDiseased: completedAssessment.isDiseased ? 'true' : 'false',
+          diseaseIdentified: completedAssessment.diseaseIdentified || null,
+          diseaseCommonName: completedAssessment.diseaseCommonName || null,
+          diseaseStatus: completedAssessment.diseaseStatus || null,
+          diseaseSummaryStatement: completedAssessment.diseaseSummaryStatement || null,
+          audioNarration: completedAssessment.audioNarration || null,
+          symptomsObserved: completedAssessment.symptomsObserved || [],
+          differentialDiagnoses: completedAssessment.differentialDiagnoses || [],
+          severityGrade: completedAssessment.severityGrade || 'Mild',
+          pregnancyStatus: completedAssessment.pregnancyStatus || pregnancyStatus || null,
+          lactationStatus: completedAssessment.lactationStatus || lactationStatus || null,
+          milkYieldImpact: completedAssessment.milkYieldImpact || null,
+          reproductiveAndLactationAlerts: completedAssessment.reproductiveAndLactationAlerts || null,
+          ragCitations: completedAssessment.ragCitations || [],
+          immediateRemedies: completedAssessment.immediateRemedies || [],
+          recommendedVeterinaryActions: completedAssessment.recommendedVeterinaryActions || [],
+          biosecurityProtocol: completedAssessment.biosecurityProtocol || [],
+          gpsMetadata: completedAssessment.gpsMetadata,
+          audioNarrativeUrl: completedAssessment.audioNarrativeUrl || null,
+          audioLanguage: completedAssessment.audioLanguage || 'en',
+          reviewedByOfficer: completedAssessment.reviewedByOfficer || null,
+        }).onConflictDoNothing();
+      } catch (persistErr) {
+        console.warn('Notice: Could not persist diagnostic assessment to database:', persistErr);
+      }
+
       res.json(completedAssessment);
     } catch (error: any) {
       console.error('Diagnostic assessment controller error:', error);
@@ -2141,6 +2416,10 @@ OUTPUT FORMAT: Return strictly a valid JSON object matching this schema (do NOT 
 
   const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`PashuHealth AI Core running on http://0.0.0.0:${PORT} [mode: ${isProduction ? 'production' : 'development'}]`);
+    // Seed initial records into PostgreSQL if empty
+    ensureDatabaseSeeded().catch((seedErr) => {
+      console.warn('Initial database seed notice:', seedErr?.message || seedErr);
+    });
   });
 
   server.on('error', (err: any) => {

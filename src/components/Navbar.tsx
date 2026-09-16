@@ -13,8 +13,7 @@ import {
   ChevronDown,
   Shield,
   Layers,
-  ArrowLeftRight,
-  Download
+  ArrowLeftRight
 } from 'lucide-react';
 import { AuthUser, SupportedLanguage, UserRole } from '../types';
 import { SUPPORTED_LANGUAGES } from '../utils/languages';
@@ -259,21 +258,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                     {/* Switch / Logout Actions */}
                     <div className="space-y-1 pt-1 border-t border-slate-100">
-                      <a
-                        href="/gausehat-ai-source.zip"
-                        download="gausehat-ai-source.zip"
-                        className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-emerald-50 text-emerald-800 font-medium flex items-center justify-between cursor-pointer"
-                        title="Download Complete Source Code ZIP archive"
-                      >
-                        <span className="flex items-center gap-1.5">
-                          <Download className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Download Project ZIP</span>
-                        </span>
-                        <span className="text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-mono font-bold">
-                          ZIP
-                        </span>
-                      </a>
-
                       <button
                         onClick={() => {
                           setIsProfileMenuOpen(false);
@@ -306,17 +290,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 )}
               </div>
             )}
-
-            {/* Direct Project ZIP Download Action */}
-            <a
-              href="/gausehat-ai-source.zip"
-              download="gausehat-ai-source.zip"
-              title="Download Source Code ZIP Archive"
-              className="hidden sm:inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-semibold transition-colors shadow-2xs"
-            >
-              <Download className="w-3.5 h-3.5 text-emerald-600" />
-              <span className="hidden md:inline">Download ZIP</span>
-            </a>
 
             {/* Emergency Helpline */}
             <a

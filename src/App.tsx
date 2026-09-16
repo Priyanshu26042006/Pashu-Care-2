@@ -34,8 +34,60 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState<'farmer' | 'officer'>('farmer');
   const [language, setLanguage] = useState<SupportedLanguage>('hi');
-  const [animals, setAnimals] = useState<AnimalProfile[]>(INITIAL_ANIMAL_PROFILES);
-  const [assessments, setAssessments] = useState<DiagnosticAssessment[]>(INITIAL_ASSESSMENTS);
+  const [animals, setAnimals] = useState<AnimalProfile[]>([]);
+  const [assessments, setAssessments] = useState<DiagnosticAssessment[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
+
+  // Fetch animals and assessments from backend on mount
+  useEffect(() => {
+    let isMounted = true;
+    async function loadBackendData() {
+      setIsLoadingData(true);
+      try {
+        const [animalsRes, assessmentsRes] = await Promise.all([
+          fetch('/api/animals'),
+          fetch('/api/assessments'),
+        ]);
+
+        if (animalsRes.ok) {
+          const animalsData = await animalsRes.json();
+          if (isMounted && Array.isArray(animalsData) && animalsData.length > 0) {
+            setAnimals(animalsData);
+          } else if (isMounted) {
+            setAnimals(INITIAL_ANIMAL_PROFILES);
+          }
+        } else if (isMounted) {
+          setAnimals(INITIAL_ANIMAL_PROFILES);
+        }
+
+        if (assessmentsRes.ok) {
+          const assessmentsData = await assessmentsRes.json();
+          if (isMounted && Array.isArray(assessmentsData) && assessmentsData.length > 0) {
+            setAssessments(assessmentsData);
+          } else if (isMounted) {
+            setAssessments(INITIAL_ASSESSMENTS);
+          }
+        } else if (isMounted) {
+          setAssessments(INITIAL_ASSESSMENTS);
+        }
+      } catch (fetchErr) {
+        console.warn('Backend fetch notice, falling back to local dataset:', fetchErr);
+        if (isMounted) {
+          setAnimals(INITIAL_ANIMAL_PROFILES);
+          setAssessments(INITIAL_ASSESSMENTS);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingData(false);
+        }
+      }
+    }
+
+    loadBackendData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Modals
   const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -103,73 +155,95 @@ export default function App() {
     if (!newAssessment) return;
     setAssessments((prev) => [newAssessment, ...prev]);
 
+    // Persist new assessment to PostgreSQL backend
+    fetch('/api/assessments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newAssessment),
+    }).catch((err) => console.warn('Failed to persist assessment to backend:', err));
+
     const predictedBreedSafe = newAssessment.predictedBreed || 'Gir (Bos indicus)';
     const firstBreedWord = predictedBreedSafe.split(' ')[0]?.toLowerCase() || '';
 
-    // Update or add corresponding animal profile
-    setAnimals((prev) => {
-      const matchIndex = prev.findIndex(
-        (a) => a.id === newAssessment.animalId || (a.breed && firstBreedWord && a.breed.toLowerCase().includes(firstBreedWord))
-      );
-      if (matchIndex >= 0) {
-        const updated = [...prev];
-        const current = updated[matchIndex];
-        updated[matchIndex] = {
-          ...current,
-          lastAssessmentDate: newAssessment.timestamp || new Date().toISOString(),
-          bodyConditionScore: Number(newAssessment.bodyConditionScore) || current.bodyConditionScore || 3.2,
-          currentStatus: newAssessment.severityGrade === 'Emergency Quarantine'
-            ? 'Critical / Flagged'
-            : newAssessment.severityGrade === 'Severe'
-            ? 'Critical / Flagged'
-            : newAssessment.severityGrade === 'Moderate'
-            ? 'Moderate Concern'
-            : 'Healthy',
-          assessmentsCount: (current.assessmentsCount || 1) + 1,
-        };
-        return updated;
-      } else {
-        const safeGps = newAssessment.gpsMetadata || {
-          lat: 21.5222,
-          lng: 70.4579,
-          district: 'Satara',
-          state: 'Maharashtra',
-        };
-        // Create new animal profile record
-        const newAnimal: AnimalProfile = {
-          id: newAssessment.animalId || `anim-${Date.now().toString(36)}`,
-          earTagNumber: `IN-DLM-${Math.floor(1000 + Math.random() * 9000)}`,
-          name: `${predictedBreedSafe.split(' ')[0] || 'Livestock'} Specimen`,
-          species: (newAssessment.detectedSpecies as any) || 'Cattle',
-          breed: predictedBreedSafe,
-          estimatedAgeMonths: 36,
-          gender: 'Female',
-          weightKg: 420,
-          ownerName: currentUser?.role === 'farmer' ? currentUser.name : 'Registered Livestock Farmer',
-          ownerContact: currentUser?.phone || '+91 98000 00000',
-          ownerVillage: currentUser?.village || 'Field Station',
-          district: safeGps.district || currentUser?.district || 'Satara',
-          state: safeGps.state || currentUser?.state || 'Maharashtra',
-          gpsLocation: {
-            lat: Number(safeGps.lat) || 21.5222,
-            lng: Number(safeGps.lng) || 70.4579,
-            timestamp: newAssessment.timestamp || new Date().toISOString(),
-          },
-          currentStatus: newAssessment.severityGrade === 'Emergency Quarantine' || newAssessment.severityGrade === 'Severe'
-            ? 'Critical / Flagged'
-            : 'Moderate Concern',
-          lastAssessmentDate: newAssessment.timestamp || new Date().toISOString(),
-          thumbnailUrl: newAssessment.imageUrl || 'https://images.unsplash.com/photo-1546445317-29f4545e9d53?auto=format&fit=crop&w=1000&q=80',
-          bodyConditionScore: Number(newAssessment.bodyConditionScore) || 3.2,
-          vaccinations: [
-            { name: 'FMD Oil Adjuvant Vaccine', date: '2026-02-10', nextDueDate: '2026-08-10', batchNo: 'FMD-IN-901' }
-          ],
-          assessmentsCount: 1,
-          quarantineStatus: newAssessment.severityGrade === 'Emergency Quarantine' ? 'Enforced' : 'None',
-        };
-        return [newAnimal, ...prev];
-      }
-    });
+    // Update or add corresponding animal profile cleanly
+    const matchIndex = animals.findIndex(
+      (a) => a.id === newAssessment.animalId || (a.breed && firstBreedWord && a.breed.toLowerCase().includes(firstBreedWord))
+    );
+
+    let animalToPersist: AnimalProfile;
+    if (matchIndex >= 0) {
+      const current = animals[matchIndex];
+      animalToPersist = {
+        ...current,
+        lastAssessmentDate: newAssessment.timestamp || new Date().toISOString(),
+        bodyConditionScore: Number(newAssessment.bodyConditionScore) || current.bodyConditionScore || 3.2,
+        currentStatus: newAssessment.severityGrade === 'Emergency Quarantine'
+          ? 'Critical / Flagged'
+          : newAssessment.severityGrade === 'Severe'
+          ? 'Critical / Flagged'
+          : newAssessment.severityGrade === 'Moderate'
+          ? 'Moderate Concern'
+          : 'Healthy',
+        assessmentsCount: (current.assessmentsCount || 1) + 1,
+      };
+
+      setAnimals((prev) => {
+        const idx = prev.findIndex((a) => a.id === animalToPersist.id);
+        if (idx >= 0) {
+          const updated = [...prev];
+          updated[idx] = animalToPersist;
+          return updated;
+        }
+        return [animalToPersist, ...prev];
+      });
+    } else {
+      const safeGps = newAssessment.gpsMetadata || {
+        lat: 21.5222,
+        lng: 70.4579,
+        district: 'Satara',
+        state: 'Maharashtra',
+      };
+      animalToPersist = {
+        id: newAssessment.animalId || `anim-${Date.now().toString(36)}`,
+        earTagNumber: `IN-DLM-${Math.floor(1000 + Math.random() * 9000)}`,
+        name: `${predictedBreedSafe.split(' ')[0] || 'Livestock'} Specimen`,
+        species: (newAssessment.detectedSpecies as any) || 'Cattle',
+        breed: predictedBreedSafe,
+        estimatedAgeMonths: 36,
+        gender: 'Female',
+        weightKg: 420,
+        ownerName: currentUser?.role === 'farmer' ? currentUser.name : 'Registered Livestock Farmer',
+        ownerContact: currentUser?.phone || '+91 98000 00000',
+        ownerVillage: currentUser?.village || 'Field Station',
+        district: safeGps.district || currentUser?.district || 'Satara',
+        state: safeGps.state || currentUser?.state || 'Maharashtra',
+        gpsLocation: {
+          lat: Number(safeGps.lat) || 21.5222,
+          lng: Number(safeGps.lng) || 70.4579,
+          timestamp: newAssessment.timestamp || new Date().toISOString(),
+        },
+        currentStatus: newAssessment.severityGrade === 'Emergency Quarantine' || newAssessment.severityGrade === 'Severe'
+          ? 'Critical / Flagged'
+          : 'Moderate Concern',
+        lastAssessmentDate: newAssessment.timestamp || new Date().toISOString(),
+        thumbnailUrl: newAssessment.imageUrl || 'https://images.unsplash.com/photo-1546445317-29f4545e9d53?auto=format&fit=crop&w=1000&q=80',
+        bodyConditionScore: Number(newAssessment.bodyConditionScore) || 3.2,
+        vaccinations: [
+          { name: 'FMD Oil Adjuvant Vaccine', date: '2026-02-10', nextDueDate: '2026-08-10', batchNo: 'FMD-IN-901' }
+        ],
+        assessmentsCount: 1,
+        quarantineStatus: newAssessment.severityGrade === 'Emergency Quarantine' ? 'Enforced' : 'None',
+      };
+
+      setAnimals((prev) => [animalToPersist, ...prev]);
+    }
+
+    // Persist animal profile to PostgreSQL backend
+    fetch('/api/animals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(animalToPersist),
+    }).catch((err) => console.warn('Failed to persist animal to backend:', err));
 
     // Open clinical report view immediately
     setSelectedAssessment(newAssessment);
@@ -185,59 +259,72 @@ export default function App() {
   };
 
   const handleCreateSeparateReport = (report: CattleFormalReport, targetAnimalId?: string) => {
-    setAnimals((prev) => {
-      const targetId = targetAnimalId || report.animalId;
-      const matchIndex = prev.findIndex(
-        (a) => a.id === targetId || a.earTagNumber === report.animalEarTag
-      );
-      if (matchIndex >= 0) {
-        const updated = [...prev];
-        const target = updated[matchIndex];
-        const existingReports = target.reports || [];
-        updated[matchIndex] = {
-          ...target,
-          reports: [report, ...existingReports],
-        };
-        return updated;
-      } else {
-        // If registered as new specimen record
-        const newAnimal: AnimalProfile = {
-          id: report.animalId,
-          earTagNumber: report.animalEarTag,
-          name: report.animalName || `${report.breed.split(' ')[0]} Specimen`,
-          species: (report.species as any) || 'Cattle',
-          breed: report.breed,
-          estimatedAgeMonths: 36,
-          gender: 'Female',
-          weightKg: 420,
-          ownerName: currentUser?.role === 'farmer' ? currentUser.name : 'Registered Livestock Farmer',
-          ownerContact: currentUser?.phone || '+91 98000 00000',
-          ownerVillage: currentUser?.village || 'Field Station',
-          district: report.gpsLocation.district || currentUser?.district || 'Satara',
-          state: report.gpsLocation.state || currentUser?.state || 'Maharashtra',
-          gpsLocation: {
-            lat: report.gpsLocation.lat,
-            lng: report.gpsLocation.lng,
-            timestamp: report.createdAt,
-          },
-          currentStatus: report.severityGrade === 'Emergency Quarantine' || report.severityGrade === 'Severe'
-            ? 'Critical / Flagged'
-            : report.severityGrade === 'Moderate'
-            ? 'Moderate Concern'
-            : 'Healthy',
-          lastAssessmentDate: report.createdAt,
-          thumbnailUrl: report.imageUrl,
-          bodyConditionScore: report.bcsScore,
-          vaccinations: [
-            { name: 'FMD Oil Adjuvant Vaccine', date: '2026-02-10', nextDueDate: '2026-08-10', batchNo: 'FMD-IN-901' }
-          ],
-          assessmentsCount: 1,
-          quarantineStatus: report.severityGrade === 'Emergency Quarantine' ? 'Enforced' : 'None',
-          reports: [report],
-        };
-        return [newAnimal, ...prev];
-      }
-    });
+    const targetId = targetAnimalId || report.animalId;
+    const matchIndex = animals.findIndex(
+      (a) => a.id === targetId || a.earTagNumber === report.animalEarTag
+    );
+
+    let animalToPersist: AnimalProfile;
+    if (matchIndex >= 0) {
+      const target = animals[matchIndex];
+      const existingReports = target.reports || [];
+      animalToPersist = {
+        ...target,
+        reports: [report, ...existingReports],
+      };
+      setAnimals((prev) => {
+        const idx = prev.findIndex((a) => a.id === animalToPersist.id);
+        if (idx >= 0) {
+          const updated = [...prev];
+          updated[idx] = animalToPersist;
+          return updated;
+        }
+        return [animalToPersist, ...prev];
+      });
+    } else {
+      animalToPersist = {
+        id: report.animalId,
+        earTagNumber: report.animalEarTag,
+        name: report.animalName || `${report.breed.split(' ')[0]} Specimen`,
+        species: (report.species as any) || 'Cattle',
+        breed: report.breed,
+        estimatedAgeMonths: 36,
+        gender: 'Female',
+        weightKg: 420,
+        ownerName: currentUser?.role === 'farmer' ? currentUser.name : 'Registered Livestock Farmer',
+        ownerContact: currentUser?.phone || '+91 98000 00000',
+        ownerVillage: currentUser?.village || 'Field Station',
+        district: report.gpsLocation.district || currentUser?.district || 'Satara',
+        state: report.gpsLocation.state || currentUser?.state || 'Maharashtra',
+        gpsLocation: {
+          lat: report.gpsLocation.lat,
+          lng: report.gpsLocation.lng,
+          timestamp: report.createdAt,
+        },
+        currentStatus: report.severityGrade === 'Emergency Quarantine' || report.severityGrade === 'Severe'
+          ? 'Critical / Flagged'
+          : report.severityGrade === 'Moderate'
+          ? 'Moderate Concern'
+          : 'Healthy',
+        lastAssessmentDate: report.createdAt,
+        thumbnailUrl: report.imageUrl,
+        bodyConditionScore: report.bcsScore,
+        vaccinations: [
+          { name: 'FMD Oil Adjuvant Vaccine', date: '2026-02-10', nextDueDate: '2026-08-10', batchNo: 'FMD-IN-901' }
+        ],
+        assessmentsCount: 1,
+        quarantineStatus: report.severityGrade === 'Emergency Quarantine' ? 'Enforced' : 'None',
+        reports: [report],
+      };
+      setAnimals((prev) => [animalToPersist, ...prev]);
+    }
+
+    // Persist updated animal profile to PostgreSQL backend
+    fetch('/api/animals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(animalToPersist),
+    }).catch((err) => console.warn('Failed to persist animal to backend:', err));
 
     setEscalationToast(`Official Health Report #${report.reportNumber} generated and added to Cattle Section.`);
     setTimeout(() => setEscalationToast(null), 5000);
