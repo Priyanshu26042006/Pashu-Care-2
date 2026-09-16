@@ -32,8 +32,27 @@ export default function App() {
     return null;
   });
 
+  const STORAGE_KEY_LANG = 'gausehat_app_language';
+
   const [activeTab, setActiveTab] = useState<'farmer' | 'officer'>('farmer');
-  const [language, setLanguage] = useState<SupportedLanguage>('hi');
+  const [language, setLanguageState] = useState<SupportedLanguage>(() => {
+    try {
+      const saved = localStorage.getItem('gausehat_app_language') as SupportedLanguage;
+      if (saved) return saved;
+    } catch (e) {
+      console.warn('Failed to parse saved language', e);
+    }
+    return 'hi';
+  });
+
+  const setLanguage = (newLang: SupportedLanguage) => {
+    setLanguageState(newLang);
+    try {
+      localStorage.setItem(STORAGE_KEY_LANG, newLang);
+    } catch (e) {
+      console.warn('Failed to persist language to localStorage', e);
+    }
+  };
   const [animals, setAnimals] = useState<AnimalProfile[]>([]);
   const [assessments, setAssessments] = useState<DiagnosticAssessment[]>([]);
   const [isLoadingData, setIsLoadingData] = useState<boolean>(true);

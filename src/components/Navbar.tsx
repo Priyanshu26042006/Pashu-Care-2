@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   Activity, 
   MapPin, 
@@ -13,7 +13,10 @@ import {
   ChevronDown,
   Shield,
   Layers,
-  ArrowLeftRight
+  ArrowLeftRight,
+  Search,
+  X,
+  Check
 } from 'lucide-react';
 import { AuthUser, SupportedLanguage, UserRole } from '../types';
 import { SUPPORTED_LANGUAGES } from '../utils/languages';
@@ -47,7 +50,39 @@ export const Navbar: React.FC<NavbarProps> = ({
   const isVeterinarian = currentUser?.role === 'veterinarian';
   const isFarmer = currentUser?.role === 'farmer';
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
+  const [langSearch, setLangSearch] = useState('');
+  const langRef = useRef<HTMLDivElement>(null);
   const tFarmer = getFarmerUIText(language);
+
+  // Close language menu on click/touch outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      if (langRef.current && !langRef.current.contains(e.target as Node)) {
+        setIsLanguageMenuOpen(false);
+      }
+    };
+    if (isLanguageMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isLanguageMenuOpen]);
+
+  const filteredLanguages = useMemo(() => {
+    if (!langSearch.trim()) return LANGUAGES;
+    const q = langSearch.toLowerCase().trim();
+    return LANGUAGES.filter(
+      (l) =>
+        l.native.toLowerCase().includes(q) ||
+        l.label.toLowerCase().includes(q) ||
+        l.code.toLowerCase().includes(q) ||
+        l.region.toLowerCase().includes(q)
+    );
+  }, [langSearch]);
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 text-slate-800 shadow-xs">
@@ -143,12 +178,23 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             </div>
 
-            {/* Language Selector (Enlarged & Touch-Friendly) */}
-            <div className="relative group">
+            {/* Language Selector (Touch-Friendly Button & Mobile Drawer) */}
+            <div ref={langRef} className="relative">
               <button
                 id="nav-language-selector-btn"
-                aria-label="Change Language"
-                className="flex items-center space-x-2 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-800 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl border-2 border-slate-200 hover:border-emerald-300 text-xs sm:text-sm font-bold shadow-xs hover:shadow-md transition-all cursor-pointer min-h-[44px]"
+                type="button"
+                aria-label="Change Language / भाषा चुनें"
+                aria-expanded={isLanguageMenuOpen}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsLanguageMenuOpen((prev) => !prev);
+                  setIsProfileMenuOpen(false);
+                }}
+                className={`flex items-center space-x-1.5 sm:space-x-2 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-800 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl border-2 ${
+                  isLanguageMenuOpen
+                    ? 'border-emerald-500 ring-2 ring-emerald-500/20 shadow-md'
+                    : 'border-slate-200 hover:border-emerald-300'
+                } text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer min-h-[44px] touch-manipulation`}
               >
                 <div className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200/80">
                   <Globe className="w-4 h-4 text-emerald-600" />
@@ -157,48 +203,197 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <span className="font-extrabold text-xs sm:text-sm text-slate-900 uppercase tracking-wide">
                     {language}
                   </span>
-                  <span className="text-[11px] sm:text-xs text-emerald-700 font-semibold truncate max-w-[90px] sm:max-w-[110px]">
-                    {LANGUAGES.find(l => l.code === language)?.native || 'हिन्दी'}
+                  <span className="text-[11px] sm:text-xs text-emerald-700 font-semibold truncate max-w-[70px] sm:max-w-[110px]">
+                    {LANGUAGES.find((l) => l.code === language)?.native || 'हिन्दी'}
                   </span>
                 </div>
-                <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-slate-700 transition-transform group-hover:rotate-180 shrink-0" />
+                <ChevronDown
+                  className={`w-4 h-4 text-slate-400 transition-transform duration-200 shrink-0 ${
+                    isLanguageMenuOpen ? 'rotate-180 text-emerald-600' : ''
+                  }`}
+                />
               </button>
 
-              <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-slate-200 rounded-2xl shadow-2xl py-2 hidden group-hover:block z-50">
-                <div className="px-4 py-2.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80 rounded-t-2xl">
-                  <div className="flex items-center space-x-2">
-                    <Globe className="w-4 h-4 text-emerald-600" />
-                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                      Select Language / भाषा चुनें
-                    </span>
-                  </div>
-                  <span className="text-[11px] bg-emerald-100 text-emerald-800 font-extrabold px-2 py-0.5 rounded-full border border-emerald-200">
-                    23 Languages
-                  </span>
-                </div>
-                <div className="max-h-96 overflow-y-auto py-1 divide-y divide-slate-100">
-                  {LANGUAGES.map((l) => (
-                    <button
-                      key={l.code}
-                      onClick={() => setLanguage(l.code)}
-                      className={`w-full text-left px-4 py-2.5 text-xs sm:text-sm flex items-center justify-between hover:bg-emerald-50/80 transition-colors cursor-pointer ${
-                        language === l.code ? 'text-emerald-900 font-extrabold bg-emerald-50/90 border-l-4 border-emerald-600' : 'text-slate-700'
-                      }`}
-                    >
-                      <div className="flex flex-col">
-                        <span className="font-bold text-sm text-slate-900">{l.native}</span>
-                        <span className="text-xs text-slate-500 font-medium">{l.label}</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-[10px] sm:text-xs text-slate-500 font-mono bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
-                          {l.region}
+              {/* Desktop Dropdown Menu (sm screens and above) */}
+              {isLanguageMenuOpen && (
+                <div className="hidden sm:block absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                  <div className="p-3.5 border-b border-slate-100 bg-slate-50/90">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <Globe className="w-4 h-4 text-emerald-600" />
+                        <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                          Select Language / भाषा चुनें
                         </span>
                       </div>
-                    </button>
-                  ))}
+                      <span className="text-[11px] bg-emerald-100 text-emerald-800 font-extrabold px-2 py-0.5 rounded-full border border-emerald-200">
+                        23 Languages
+                      </span>
+                    </div>
+                    {/* Instant Search Bar */}
+                    <div className="relative mt-1">
+                      <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        placeholder="Search language / भाषा खोजें..."
+                        value={langSearch}
+                        onChange={(e) => setLangSearch(e.target.value)}
+                        className="w-full pl-9 pr-8 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-hidden focus:ring-2 focus:ring-emerald-500 text-slate-800 placeholder-slate-400"
+                      />
+                      {langSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setLangSearch('')}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
+                    {filteredLanguages.length === 0 ? (
+                      <div className="p-6 text-center text-xs text-slate-500">
+                        No languages found matching "{langSearch}"
+                      </div>
+                    ) : (
+                      filteredLanguages.map((l) => (
+                        <button
+                          key={l.code}
+                          type="button"
+                          onClick={() => {
+                            setLanguage(l.code);
+                            setIsLanguageMenuOpen(false);
+                            setLangSearch('');
+                          }}
+                          className={`w-full text-left px-4 py-2.5 text-xs sm:text-sm flex items-center justify-between hover:bg-emerald-50/80 transition-colors cursor-pointer ${
+                            language === l.code
+                              ? 'text-emerald-900 font-extrabold bg-emerald-50/90 border-l-4 border-emerald-600'
+                              : 'text-slate-700'
+                          }`}
+                        >
+                          <div className="flex flex-col">
+                            <span className="font-bold text-sm text-slate-900 flex items-center gap-1.5">
+                              {l.native}
+                              {language === l.code && <Check className="w-3.5 h-3.5 text-emerald-600" />}
+                            </span>
+                            <span className="text-xs text-slate-500 font-medium">{l.label}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-[10px] sm:text-xs text-slate-500 font-mono bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                              {l.region}
+                            </span>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Dedicated Mobile Language Drawer (sm:hidden) - 100% Touch-Friendly */}
+            {isLanguageMenuOpen && (
+              <div
+                className="sm:hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex flex-col justify-end animate-in fade-in duration-150"
+                onClick={() => setIsLanguageMenuOpen(false)}
+              >
+                <div
+                  className="bg-white rounded-t-3xl shadow-2xl max-h-[85vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Top Drag Handle & Header */}
+                  <div className="p-4 border-b border-slate-100 bg-slate-50 flex flex-col space-y-3">
+                    <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto" />
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
+                          <Globe className="w-4 h-4 text-emerald-700" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-extrabold text-slate-900">
+                            Select Language / अपनी भाषा चुनें
+                          </h3>
+                          <p className="text-[11px] text-slate-500">23 Constitutional Languages of India</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsLanguageMenuOpen(false)}
+                        className="p-2 rounded-xl text-slate-500 hover:text-slate-800 bg-slate-200/80 active:bg-slate-300 cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center"
+                        aria-label="Close"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    {/* Quick Search */}
+                    <div className="relative">
+                      <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        placeholder="Search language / भाषा खोजें (Hindi, Punjabi, বাংলা...)"
+                        value={langSearch}
+                        onChange={(e) => setLangSearch(e.target.value)}
+                        className="w-full pl-10 pr-9 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-hidden focus:ring-2 focus:ring-emerald-500 text-slate-900 placeholder-slate-400"
+                      />
+                      {langSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setLangSearch('')}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Languages List (Big Touch Targets, min-h-[52px]) */}
+                  <div className="overflow-y-auto divide-y divide-slate-100 p-2 max-h-[60vh] overscroll-contain">
+                    {filteredLanguages.length === 0 ? (
+                      <div className="p-8 text-center text-sm text-slate-500">
+                        No languages found matching "{langSearch}"
+                      </div>
+                    ) : (
+                      filteredLanguages.map((l) => (
+                        <button
+                          key={l.code}
+                          type="button"
+                          onClick={() => {
+                            setLanguage(l.code);
+                            setIsLanguageMenuOpen(false);
+                            setLangSearch('');
+                          }}
+                          className={`w-full text-left px-4 py-3.5 rounded-xl flex items-center justify-between transition-colors active:bg-emerald-100 cursor-pointer min-h-[52px] ${
+                            language === l.code
+                              ? 'bg-emerald-50 text-emerald-950 border-2 border-emerald-500 font-bold shadow-xs'
+                              : 'text-slate-800 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className="flex flex-col">
+                            <span className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                              {l.native}
+                              {language === l.code && (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full">
+                                  <Check className="w-3 h-3 text-emerald-700" /> Active
+                                </span>
+                              )}
+                            </span>
+                            <span className="text-xs text-slate-500 font-medium">
+                              {l.label} • {l.region}
+                            </span>
+                          </div>
+                          <span className="text-xs font-mono font-bold text-slate-500 uppercase bg-slate-100 px-2 py-1 rounded-md border border-slate-200">
+                            {l.code}
+                          </span>
+                        </button>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Authenticated User Profile Pill & Dropdown */}
             {currentUser && (

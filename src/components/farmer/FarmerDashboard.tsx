@@ -8,12 +8,14 @@ import {
   CheckCircle2, 
   Heart,
   Milk,
-  LayoutGrid
+  LayoutGrid,
+  Globe
 } from 'lucide-react';
 import { AnimalProfile, SupportedLanguage } from '../../types';
 import { MOCK_OUTBREAK_ALERTS } from '../../data/mockLivestockData';
 import { FarmerHerdMap } from './FarmerHerdMap';
 import { getFarmerUIText } from '../../utils/farmerTranslations';
+import { SUPPORTED_LANGUAGES } from '../../utils/languages';
 
 interface FarmerDashboardProps {
   animals: AnimalProfile[];
@@ -90,11 +92,26 @@ export const FarmerDashboard: React.FC<FarmerDashboardProps> = ({
 
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2 max-w-xl">
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="bg-emerald-500/20 text-emerald-300 text-xs font-bold px-3 py-1 rounded-full border border-emerald-400/30 flex items-center gap-1.5 backdrop-blur-xs">
                 <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
                 {t.farmerHealthPortal}
               </span>
+              <button
+                type="button"
+                id="farmer-dashboard-change-lang-btn"
+                onClick={() => {
+                  const btn = document.getElementById('nav-language-selector-btn');
+                  if (btn) btn.click();
+                }}
+                className="bg-white/10 hover:bg-white/20 active:bg-white/30 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/20 flex items-center gap-1.5 backdrop-blur-xs transition-colors cursor-pointer"
+                title="Change Language / भाषा बदलें"
+              >
+                <Globe className="w-3.5 h-3.5 text-emerald-300" />
+                <span>{SUPPORTED_LANGUAGES.find(l => l.code === language)?.native || 'हिन्दी'}</span>
+                <span className="text-[10px] text-emerald-200">({SUPPORTED_LANGUAGES.find(l => l.code === language)?.label})</span>
+                <span className="text-[10px] bg-emerald-500/50 px-1.5 py-0.5 rounded text-white font-bold ml-0.5">बदलें / Change</span>
+              </button>
             </div>
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight">
               {t.myLivestockHealth}
