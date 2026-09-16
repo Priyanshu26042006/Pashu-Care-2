@@ -25,7 +25,9 @@ import {
   Navigation,
   Edit3,
   LocateFixed,
-  Compass
+  Compass,
+  Trash2,
+  ImagePlus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SAMPLE_CATTLE_PRESETS } from '../../data/mockLivestockData';
@@ -277,6 +279,20 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
     startCamera();
   };
 
+  const handleRemoveUploadedImage = () => {
+    setUploadedImage(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleChooseAnotherImage = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+      fileInputRef.current.click();
+    }
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -317,6 +333,10 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
         img.src = rawUrl;
       };
       reader.readAsDataURL(file);
+    }
+    // Reset file input value so selecting the same file again triggers onChange
+    if (e.target) {
+      e.target.value = '';
     }
   };
 
@@ -640,28 +660,80 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
                 {uploadedImage ? (
                   <div className="relative w-full h-full">
                     <img src={uploadedImage} alt="Uploaded livestock" className="w-full h-full object-cover" />
-                    <div className="absolute top-4 left-4 z-20 flex items-center space-x-2 bg-slate-950/80 border border-slate-700 backdrop-blur-xs px-3 py-1 rounded-xl text-xs text-emerald-300 font-medium">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>Custom Photo Loaded</span>
+                    
+                    {/* Status Badge */}
+                    <div className="absolute top-4 left-4 z-20 flex items-center space-x-2 bg-emerald-950/90 border border-emerald-500/50 backdrop-blur-md px-3.5 py-1.5 rounded-xl text-xs text-emerald-200 font-bold shadow-lg">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span>Photo Ready for AI Scan</span>
                     </div>
-                    <button
-                      onClick={() => setUploadedImage(null)}
-                      className="absolute top-3 right-3 p-2 rounded-xl bg-slate-900/80 text-slate-300 hover:text-white border border-slate-700 cursor-pointer"
-                      title="Replace photo"
-                    >
-                      <RefreshCw className="w-4 h-4" />
-                    </button>
+
+                    {/* Quick Action Controls on Image */}
+                    <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleChooseAnotherImage}
+                        className="flex items-center space-x-1.5 bg-slate-900/90 hover:bg-slate-900 text-white px-3 py-1.5 rounded-xl border border-slate-700 text-xs font-bold shadow-lg hover:border-emerald-400 transition-all cursor-pointer"
+                        title="Upload a different photo"
+                      >
+                        <ImagePlus className="w-4 h-4 text-emerald-400" />
+                        <span className="hidden sm:inline">Change Photo</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleRemoveUploadedImage}
+                        className="flex items-center space-x-1.5 bg-rose-950/90 hover:bg-rose-900 text-rose-200 hover:text-white px-3 py-1.5 rounded-xl border border-rose-600/70 text-xs font-bold shadow-lg transition-all cursor-pointer"
+                        title="Remove photo"
+                      >
+                        <Trash2 className="w-4 h-4 text-rose-400" />
+                        <span className="hidden sm:inline">Remove</span>
+                      </button>
+                    </div>
+
+                    {/* Bottom Action Bar for Easy Mobile Access */}
+                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 flex items-center gap-2.5 w-[90%] max-w-sm justify-center">
+                      <button
+                        type="button"
+                        onClick={handleChooseAnotherImage}
+                        className="flex-1 flex items-center justify-center space-x-2 bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 px-3.5 rounded-xl text-xs sm:text-sm font-bold shadow-xl border border-emerald-400/40 transition-all hover:scale-[1.02] active:scale-98 cursor-pointer"
+                      >
+                        <ImagePlus className="w-4 h-4" />
+                        <span>Add Another Photo</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleRemoveUploadedImage}
+                        className="flex items-center justify-center space-x-1.5 bg-slate-900/90 hover:bg-rose-950 text-slate-300 hover:text-rose-200 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold border border-slate-700 hover:border-rose-500 shadow-xl transition-all active:scale-98 cursor-pointer"
+                      >
+                        <Trash2 className="w-4 h-4 text-rose-400" />
+                        <span>Remove</span>
+                      </button>
+                    </div>
+
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleFileUpload}
+                    />
                   </div>
                 ) : (
                   <div
                     onClick={() => fileInputRef.current?.click()}
-                    className="cursor-pointer text-center p-6 space-y-3 border-2 border-dashed border-slate-700 rounded-xl m-4 w-full h-[80%] flex flex-col items-center justify-center hover:border-emerald-500/60 transition-colors"
+                    className="cursor-pointer text-center p-6 space-y-3 border-2 border-dashed border-slate-700 rounded-xl m-4 w-full h-[80%] flex flex-col items-center justify-center hover:border-emerald-500/60 hover:bg-emerald-950/10 transition-colors"
                   >
-                    <Upload className="w-10 h-10 text-emerald-400 animate-bounce" />
-                    <div>
-                      <p className="text-sm font-semibold text-white">Click or drag & drop livestock photo</p>
-                      <p className="text-xs text-slate-400">Supports JPG, PNG, WEBP (Max 20MB)</p>
+                    <div className="w-14 h-14 rounded-2xl bg-emerald-950/80 border border-emerald-500/40 flex items-center justify-center">
+                      <Upload className="w-7 h-7 text-emerald-400 animate-bounce" />
                     </div>
+                    <div>
+                      <p className="text-sm font-bold text-white">Click or drag & drop livestock photo</p>
+                      <p className="text-xs text-slate-400 mt-0.5">Supports JPG, PNG, WEBP (Max 20MB)</p>
+                    </div>
+                    <span className="text-xs font-semibold text-emerald-400 bg-emerald-950/60 px-3 py-1 rounded-lg border border-emerald-500/30">
+                      Choose from Gallery or Storage
+                    </span>
                     <input
                       ref={fileInputRef}
                       type="file"

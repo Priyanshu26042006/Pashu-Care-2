@@ -143,40 +143,54 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             </div>
 
-            {/* Language Selector */}
+            {/* Language Selector (Enlarged & Touch-Friendly) */}
             <div className="relative group">
-              <button className="flex items-center space-x-1.5 bg-white hover:bg-slate-50 text-slate-700 px-2.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold shadow-xs transition-colors cursor-pointer">
-                <Globe className="w-3.5 h-3.5 text-emerald-600" />
-                <span className="font-bold text-xs uppercase">{language}</span>
-                <span className="hidden md:inline text-[11px] text-slate-500 font-normal">
-                  ({LANGUAGES.find(l => l.code === language)?.native || 'हिन्दी'})
-                </span>
-              </button>
-
-              <div className="absolute right-0 mt-2 w-72 sm:w-80 bg-white border border-slate-200 rounded-2xl shadow-2xl py-2 hidden group-hover:block z-50">
-                <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    22 Constitutional Languages + English
+              <button
+                id="nav-language-selector-btn"
+                aria-label="Change Language"
+                className="flex items-center space-x-2 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-800 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl border-2 border-slate-200 hover:border-emerald-300 text-xs sm:text-sm font-bold shadow-xs hover:shadow-md transition-all cursor-pointer min-h-[44px]"
+              >
+                <div className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200/80">
+                  <Globe className="w-4 h-4 text-emerald-600" />
+                </div>
+                <div className="flex flex-col text-left leading-tight">
+                  <span className="font-extrabold text-xs sm:text-sm text-slate-900 uppercase tracking-wide">
+                    {language}
                   </span>
-                  <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-1.5 py-0.5 rounded">
-                    All-India
+                  <span className="text-[11px] sm:text-xs text-emerald-700 font-semibold truncate max-w-[90px] sm:max-w-[110px]">
+                    {LANGUAGES.find(l => l.code === language)?.native || 'हिन्दी'}
                   </span>
                 </div>
-                <div className="max-h-80 overflow-y-auto py-1 divide-y divide-slate-50">
+                <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-slate-700 transition-transform group-hover:rotate-180 shrink-0" />
+              </button>
+
+              <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-slate-200 rounded-2xl shadow-2xl py-2 hidden group-hover:block z-50">
+                <div className="px-4 py-2.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80 rounded-t-2xl">
+                  <div className="flex items-center space-x-2">
+                    <Globe className="w-4 h-4 text-emerald-600" />
+                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Select Language / भाषा चुनें
+                    </span>
+                  </div>
+                  <span className="text-[11px] bg-emerald-100 text-emerald-800 font-extrabold px-2 py-0.5 rounded-full border border-emerald-200">
+                    23 Languages
+                  </span>
+                </div>
+                <div className="max-h-96 overflow-y-auto py-1 divide-y divide-slate-100">
                   {LANGUAGES.map((l) => (
                     <button
                       key={l.code}
                       onClick={() => setLanguage(l.code)}
-                      className={`w-full text-left px-3.5 py-2 text-xs flex items-center justify-between hover:bg-emerald-50/70 transition-colors cursor-pointer ${
-                        language === l.code ? 'text-emerald-800 font-bold bg-emerald-50 border-l-2 border-emerald-600' : 'text-slate-700'
+                      className={`w-full text-left px-4 py-2.5 text-xs sm:text-sm flex items-center justify-between hover:bg-emerald-50/80 transition-colors cursor-pointer ${
+                        language === l.code ? 'text-emerald-900 font-extrabold bg-emerald-50/90 border-l-4 border-emerald-600' : 'text-slate-700'
                       }`}
                     >
                       <div className="flex flex-col">
-                        <span className="font-semibold text-xs text-slate-900">{l.native}</span>
-                        <span className="text-[11px] text-slate-500">{l.label}</span>
+                        <span className="font-bold text-sm text-slate-900">{l.native}</span>
+                        <span className="text-xs text-slate-500 font-medium">{l.label}</span>
                       </div>
                       <div className="text-right">
-                        <span className="text-[9px] text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded">
+                        <span className="text-[10px] sm:text-xs text-slate-500 font-mono bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
                           {l.region}
                         </span>
                       </div>
