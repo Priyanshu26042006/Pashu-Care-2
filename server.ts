@@ -2408,8 +2408,37 @@ OUTPUT FORMAT: Return strictly a valid JSON object matching this schema (do NOT 
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
+    const assetsPath = path.join(distPath, 'assets');
+
+    // Hashed Vite production assets (JS/CSS/media bundles) - immutable long-term caching
+    app.use(
+      '/assets',
+      express.static(assetsPath, {
+        maxAge: '1y',
+        immutable: true,
+        setHeaders: (res) => {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        },
+      })
+    );
+
+    // General static file serving with explicit Cache-Control headers
+    app.use(
+      express.static(distPath, {
+        setHeaders: (res, filePath) => {
+          const normalized = path.normalize(filePath);
+          if (normalized.endsWith('index.html')) {
+            res.setHeader('Cache-Control', 'no-cache');
+          } else if (normalized.includes(`${path.sep}assets${path.sep}`) || normalized.includes('/assets/')) {
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+          }
+        },
+      })
+    );
+
+    // Catch-all SPA fallback route - always fetch fresh index.html
     app.get('*', (req, res) => {
+      res.setHeader('Cache-Control', 'no-cache');
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

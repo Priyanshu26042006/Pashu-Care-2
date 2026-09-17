@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Activity, 
   MapPin, 
@@ -53,12 +54,18 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
   const [langSearch, setLangSearch] = useState('');
   const langRef = useRef<HTMLDivElement>(null);
+  const mobileDrawerRef = useRef<HTMLDivElement>(null);
   const tFarmer = getFarmerUIText(language);
 
-  // Close language menu on click/touch outside
+  // Close language menu on click/touch outside (handles both desktop dropdown and mobile drawer)
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
-      if (langRef.current && !langRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        langRef.current &&
+        !langRef.current.contains(target) &&
+        (!mobileDrawerRef.current || !mobileDrawerRef.current.contains(target))
+      ) {
         setIsLanguageMenuOpen(false);
       }
     };
@@ -70,6 +77,17 @@ export const Navbar: React.FC<NavbarProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
     };
+  }, [isLanguageMenuOpen]);
+
+  // Lock body scroll when mobile drawer is open in smartphone portrait mode
+  useEffect(() => {
+    if (isLanguageMenuOpen) {
+      const origOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = origOverflow;
+      };
+    }
   }, [isLanguageMenuOpen]);
 
   const filteredLanguages = useMemo(() => {
@@ -86,18 +104,18 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 text-slate-800 shadow-xs">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 sm:h-20">
+      <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16 sm:h-20 gap-1 sm:gap-4">
           
           {/* Logo & National System Identity */}
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setActiveTab('farmer')}>
-            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
-              <Activity className="w-6 h-6 text-white stroke-[2.5]" />
+          <div className="flex items-center space-x-2 sm:space-x-3 cursor-pointer shrink-0" onClick={() => setActiveTab('farmer')}>
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs shrink-0">
+              <Activity className="w-5 h-5 sm:w-6 sm:h-6 text-white stroke-[2.5]" />
             </div>
             <div>
-              <div className="flex items-center space-x-2">
-                <span className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 flex items-center gap-1.5 font-display">
-                  Gausehat <span className="text-emerald-700 font-extrabold text-xs tracking-wide bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">AI</span>
+              <div className="flex items-center space-x-1.5">
+                <span className="text-base sm:text-xl font-bold tracking-tight text-slate-900 flex items-center gap-1 font-display">
+                  Gausehat <span className="text-emerald-700 font-extrabold text-[10px] sm:text-xs tracking-wide bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-200">AI</span>
                 </span>
                 <span className="hidden md:inline-flex items-center text-[11px] font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
                   <ShieldCheck className="w-3.5 h-3.5 mr-1 text-emerald-600" />
@@ -155,31 +173,31 @@ export const Navbar: React.FC<NavbarProps> = ({
           </nav>
 
           {/* Right Action Controls */}
-          <div className="flex items-center space-x-2 sm:space-x-3">
+          <div className="flex items-center space-x-1.5 sm:space-x-3 shrink-0">
             
             {/* Quick Scan CTA Button */}
-            <div className="relative group p-[2px] rounded-2xl ai-glow-border shadow-lg hover:shadow-xl hover:shadow-emerald-500/30 transition-all">
+            <div className="relative group p-[2px] rounded-2xl ai-glow-border shadow-lg hover:shadow-xl hover:shadow-emerald-500/30 transition-all shrink-0">
               <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 rounded-2xl blur-xs opacity-75 group-hover:opacity-100 transition duration-500 pointer-events-none"></div>
 
               <button
                 id="nav-scan-livestock-btn"
                 onClick={onOpenNewScan}
                 aria-label="Scan Livestock with AI Camera"
-                className="relative inline-flex items-center justify-center space-x-2 sm:space-x-3 bg-emerald-700 hover:bg-emerald-650 active:bg-emerald-800 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-[14px] text-sm sm:text-base font-extrabold transition-all transform active:scale-95 cursor-pointer min-h-[46px] sm:min-h-[50px]"
+                className="relative inline-flex items-center justify-center space-x-1 sm:space-x-3 bg-emerald-700 hover:bg-emerald-650 active:bg-emerald-800 text-white px-2.5 sm:px-6 py-2 sm:py-3 rounded-xl sm:rounded-[14px] text-xs sm:text-base font-extrabold transition-all transform active:scale-95 cursor-pointer min-h-[40px] sm:min-h-[50px]"
               >
                 <div className="relative flex items-center justify-center">
-                  <Camera className="w-5 h-5 sm:w-6 sm:h-6 text-white stroke-[2.5] shrink-0" />
-                  <Sparkles className="w-3.5 h-3.5 text-cyan-200 absolute -top-1.5 -right-1.5 animate-pulse" />
+                  <Camera className="w-4 h-4 sm:w-6 sm:h-6 text-white stroke-[2.5] shrink-0" />
+                  <Sparkles className="w-3 h-3 text-cyan-200 absolute -top-1 -right-1 animate-pulse" />
                 </div>
-                <span className="tracking-tight text-white font-black text-sm sm:text-base">{tFarmer.navScanAi}</span>
-                <span className="inline-flex items-center text-[10px] sm:text-xs uppercase font-black px-1.5 py-0.5 rounded-md bg-emerald-900/80 border border-emerald-400/50 text-emerald-200 tracking-wider">
+                <span className="tracking-tight text-white font-black text-xs sm:text-base whitespace-nowrap">{tFarmer.navScanAi}</span>
+                <span className="hidden sm:inline-flex items-center text-[10px] sm:text-xs uppercase font-black px-1.5 py-0.5 rounded-md bg-emerald-900/80 border border-emerald-400/50 text-emerald-200 tracking-wider">
                   {tFarmer.navLiveBadge}
                 </span>
               </button>
             </div>
 
             {/* Language Selector (Touch-Friendly Button & Mobile Drawer) */}
-            <div ref={langRef} className="relative">
+            <div ref={langRef} className="relative shrink-0">
               <button
                 id="nav-language-selector-btn"
                 type="button"
@@ -190,25 +208,25 @@ export const Navbar: React.FC<NavbarProps> = ({
                   setIsLanguageMenuOpen((prev) => !prev);
                   setIsProfileMenuOpen(false);
                 }}
-                className={`flex items-center space-x-1.5 sm:space-x-2 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-800 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl border-2 ${
+                className={`flex items-center space-x-1 sm:space-x-2 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-800 px-2 sm:px-3.5 py-1.5 sm:py-2.5 rounded-xl sm:rounded-2xl border-2 ${
                   isLanguageMenuOpen
                     ? 'border-emerald-500 ring-2 ring-emerald-500/20 shadow-md'
                     : 'border-slate-200 hover:border-emerald-300'
-                } text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer min-h-[44px] touch-manipulation`}
+                } text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer min-h-[40px] sm:min-h-[44px] touch-manipulation`}
               >
-                <div className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200/80">
-                  <Globe className="w-4 h-4 text-emerald-600" />
+                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200/80">
+                  <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600" />
                 </div>
                 <div className="flex flex-col text-left leading-tight">
-                  <span className="font-extrabold text-xs sm:text-sm text-slate-900 uppercase tracking-wide">
+                  <span className="font-extrabold text-[11px] sm:text-sm text-slate-900 uppercase tracking-wide">
                     {language}
                   </span>
-                  <span className="text-[11px] sm:text-xs text-emerald-700 font-semibold truncate max-w-[70px] sm:max-w-[110px]">
+                  <span className="text-[10px] sm:text-xs text-emerald-700 font-semibold truncate max-w-[45px] xs:max-w-[70px] sm:max-w-[110px]">
                     {LANGUAGES.find((l) => l.code === language)?.native || 'हिन्दी'}
                   </span>
                 </div>
                 <ChevronDown
-                  className={`w-4 h-4 text-slate-400 transition-transform duration-200 shrink-0 ${
+                  className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 transition-transform duration-200 shrink-0 ${
                     isLanguageMenuOpen ? 'rotate-180 text-emerald-600' : ''
                   }`}
                 />
@@ -292,14 +310,15 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </div>
 
-            {/* Dedicated Mobile Language Drawer (sm:hidden) - 100% Touch-Friendly */}
-            {isLanguageMenuOpen && (
+            {/* Dedicated Mobile Language Drawer (sm:hidden) - Rendered into body via Portal to escape sticky/blur containing block */}
+            {isLanguageMenuOpen && typeof document !== 'undefined' && createPortal(
               <div
-                className="sm:hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex flex-col justify-end animate-in fade-in duration-150"
+                className="sm:hidden fixed inset-0 z-[9999] bg-slate-950/75 backdrop-blur-xs flex flex-col justify-end animate-in fade-in duration-150"
                 onClick={() => setIsLanguageMenuOpen(false)}
               >
                 <div
-                  className="bg-white rounded-t-3xl shadow-2xl max-h-[85vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200"
+                  ref={mobileDrawerRef}
+                  className="bg-white rounded-t-3xl shadow-2xl max-h-[85vh] w-full flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200 border-t border-slate-200"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {/* Top Drag Handle & Header */}
@@ -341,7 +360,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         <button
                           type="button"
                           onClick={() => setLangSearch('')}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -392,16 +411,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                     )}
                   </div>
                 </div>
-              </div>
+              </div>,
+              document.body
             )}
 
             {/* Authenticated User Profile Pill & Dropdown */}
             {currentUser && (
-              <div className="relative">
+              <div className="relative shrink-0">
                 <button
                   id="user-profile-btn"
                   onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                  className={`flex items-center space-x-2 px-2.5 py-1.5 rounded-xl border text-xs transition-all cursor-pointer ${
+                  className={`flex items-center space-x-1 sm:space-x-2 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl border text-xs transition-all cursor-pointer min-h-[40px] ${
                     isVeterinarian
                       ? 'bg-cyan-50/80 border-cyan-200 text-cyan-900 hover:bg-cyan-100/70'
                       : 'bg-emerald-50/80 border-emerald-200 text-emerald-900 hover:bg-emerald-100/70'
@@ -505,7 +525,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <a
               href="tel:1962"
               title="National Animal Helpline (1962)"
-              className="p-2 rounded-xl bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 text-xs flex items-center transition-colors font-semibold"
+              className="p-2 rounded-xl bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 text-xs flex items-center justify-center transition-colors font-semibold shrink-0 min-h-[40px] min-w-[36px]"
             >
               <PhoneCall className="w-4 h-4 text-amber-600" />
               <span className="hidden xl:inline ml-1 font-bold text-xs">1962 Toll-Free</span>

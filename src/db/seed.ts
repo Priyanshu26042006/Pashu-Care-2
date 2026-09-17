@@ -13,6 +13,7 @@ export async function ensureDatabaseSeeded() {
   }
   try {
     const pool = getPool();
+    if (!pool) return;
 
     // Auto-create tables if they don't exist yet
     await pool.query(`
